@@ -6,13 +6,18 @@ Note
 *When starting the scene, keep in mind that the scene seems to stop for dozens of seconds to initialize the face landmark detector.*
 
 
+Demo Video
+-----
+[![](http://img.youtube.com/vi/egMZB_3DGVc/0.jpg)](https://youtu.be/egMZB_3DGVc)
+
+
 Environment
 -----
 Windows 10  
 Unity 5.5.2f1  
-HoloToolKit v1.5.6.0  
-OpenCV for Unity 2.1.6
-Dlib FaceLandmarkDetector 1.1.0
+HoloToolKit v1.5.6.0  ([https://github.com/Microsoft/HoloToolkit-Unity/releases](https://github.com/Microsoft/HoloToolkit-Unity/releases))  
+OpenCV for Unity 2.1.6 ([https://www.assetstore.unity3d.com/en/#!/content/21088](https://www.assetstore.unity3d.com/en/#!/content/21088))  
+Dlib FaceLandmarkDetector 1.1.0 ([https://www.assetstore.unity3d.com/en/#!/content/64314](https://www.assetstore.unity3d.com/en/#!/content/64314))  
 
 
 Setup
@@ -28,5 +33,11 @@ Setup
 * Build and Deploy. (See [https://developer.microsoft.com/en-us/windows/holographic/holograms_100](https://developer.microsoft.com/en-us/windows/holographic/holograms_100))
 
 
+ScreenShot
+-----
+![screenshot01.jpg](screenshot01.jpg) 
 
+![screenshot02.jpg](screenshot02.jpg) 
+
+![screenshot03.jpg](screenshot03.jpg) 
 
