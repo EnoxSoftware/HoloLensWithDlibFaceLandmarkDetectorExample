@@ -49,6 +49,16 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         public Toggle isShowingWebCamImageToggle;
 
         /// <summary>
+        /// The is showing detected face rect.
+        /// </summary>
+        public bool isShowingDetectedFaceRect = false;
+
+        /// <summary>
+        /// The is showing detected face rect toggle.
+        /// </summary>
+        public Toggle isShowingDetectedFaceRectToggle;
+
+        /// <summary>
         /// The min detection size ratio.
         /// </summary>
         public float minDetectionSizeRatio = 0.07f;
@@ -115,6 +125,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         {
             isUsingSeparateDetectionToggle.isOn = isUsingSeparateDetection;
             isShowingWebCamImageToggle.isOn = isShowingWebCamImage;
+            isShowingDetectedFaceRectToggle.isOn = isShowingDetectedFaceRect;
 
             webCamTextureToMatHelper = gameObject.GetComponent<OptimizationWebCamTextureToMatHelper> ();
             webCamTextureToMatHelper.Init ();
@@ -262,9 +273,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                     rects = rectangleTracker.CreateCorrectionBySpeedOfRects ();
 
-                    for (int i = 0; i < rects.Length; i++) {
-                        //Debug.Log ("detected face[" + i + "] " + rects [i]);
-                        Imgproc.rectangle (rgbaMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (255, 0, 0, 255), 2);
+                    if (isShowingDetectedFaceRect) {
+                        for (int i = 0; i < rects.Length; i++) {
+                            //Debug.Log ("detected face[" + i + "] " + rects [i]);
+                            Imgproc.rectangle (rgbaMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (255, 0, 0, 255), 1);
+                        }
                     }
 
                     // Adjust to Dilb's result.
@@ -280,8 +293,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         //draw landmark points
                         OpenCVForUnityUtils.DrawFaceLandmark (rgbaMat, points, new Scalar (0, 255, 0, 255), 2);
 
-                        //draw face rect
-                        OpenCVForUnityUtils.DrawFaceRect (rgbaMat, new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height), new Scalar (255, 0, 0, 255), 2);
+                        if (isShowingDetectedFaceRect) {
+                            //draw face rect
+                            OpenCVForUnityUtils.DrawFaceRect (rgbaMat, new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height), new Scalar (255, 0, 0, 255), 2);
+                        }
                     }
 
                 } else {
@@ -292,17 +307,21 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         //Debug.Log("process: get rectsWhereRegions were got from detectionResult");
                         rectsWhereRegions = detectionResult.toArray ();
 
-                        rects = rectsWhereRegions;
-                        for (int i = 0; i < rects.Length; i++) {
-                            Imgproc.rectangle (rgbaMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (0, 0, 255, 255), 1);
+                        if (isShowingDetectedFaceRect) {
+                            rects = rectsWhereRegions;
+                            for (int i = 0; i < rects.Length; i++) {
+                                Imgproc.rectangle (rgbaMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (0, 0, 255, 255), 1);
+                            }
                         }
                     } else {
                         //Debug.Log("process: get rectsWhereRegions from previous positions");
                         rectsWhereRegions = rectangleTracker.CreateCorrectionBySpeedOfRects ();
 
-                        rects = rectsWhereRegions;
-                        for (int i = 0; i < rects.Length; i++) {
-                            Imgproc.rectangle (rgbaMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (0, 255, 0, 255), 1);
+                        if (isShowingDetectedFaceRect) {
+                            rects = rectsWhereRegions;
+                            for (int i = 0; i < rects.Length; i++) {
+                                Imgproc.rectangle (rgbaMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (0, 255, 0, 255), 1);
+                            }
                         }
                     }
 
@@ -317,10 +336,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     rectangleTracker.UpdateTrackedObjects (detectedObjectsInRegions);
                     rectangleTracker.GetObjects (resultObjects, true);
 
-                    rects = resultObjects.ToArray ();
-                    for (int i = 0; i < rects.Length; i++) {
-                        //Debug.Log ("detected face[" + i + "] " + rects [i]);
-                        Imgproc.rectangle (rgbaMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (255, 0, 0, 255), 2);
+                    if (isShowingDetectedFaceRect) {
+                        rects = resultObjects.ToArray ();
+                        for (int i = 0; i < rects.Length; i++) {
+                            //Debug.Log ("detected face[" + i + "] " + rects [i]);
+                            Imgproc.rectangle (rgbaMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (255, 0, 0, 255), 1);
+                        }
                     }
 
                     // Adjust to Dilb's result.
@@ -336,8 +357,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         //draw landmark points
                         OpenCVForUnityUtils.DrawFaceLandmark (rgbaMat, points, new Scalar (0, 255, 0, 255), 2);
 
-                        //draw face rect
-                        OpenCVForUnityUtils.DrawFaceRect (rgbaMat, new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height), new Scalar (255, 0, 0, 255), 2);
+                        if (isShowingDetectedFaceRect) {
+                            //draw face rect
+                            OpenCVForUnityUtils.DrawFaceRect (rgbaMat, new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height), new Scalar (255, 0, 0, 255), 2);
+                        }
                     }
                 }
                     
@@ -534,6 +557,18 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 isShowingWebCamImage = true;
             } else {
                 isShowingWebCamImage = false;
+            }
+        }
+
+        /// <summary>
+        /// Raises the is showing detected face rect toggle event.
+        /// </summary>
+        public void OnIsShowingDetectedFaceRectToggle ()
+        {
+            if (isShowingDetectedFaceRectToggle.isOn) {
+                isShowingDetectedFaceRect = true;
+            } else {
+                isShowingDetectedFaceRect = false;
             }
         }
     }
