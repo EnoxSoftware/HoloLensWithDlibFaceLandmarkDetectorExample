@@ -13,9 +13,8 @@ using DlibFaceLandmarkDetector;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
-    
     /// <summary>
-    /// HoloLens photo capture example.
+    /// HoloLens photo capture (and face landmark detection) example.
     /// referring to the https://forum.unity3d.com/threads/holographic-photo-blending-with-photocapture.416023/.
     /// </summary>
     public class HoloLensPhotoCaptureExample:MonoBehaviour
@@ -216,9 +215,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         /// <summary>
-        /// Raises the back button event.
+        /// Raises the back button click event.
         /// </summary>
-        public void OnBackButton ()
+        public void OnBackButtonClick ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");

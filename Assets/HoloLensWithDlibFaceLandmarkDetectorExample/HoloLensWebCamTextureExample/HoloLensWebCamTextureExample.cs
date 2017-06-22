@@ -11,23 +11,21 @@ using DlibFaceLandmarkDetector;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
-
     /// <summary>
-    /// HoloLens WebCamTexture example.
+    /// HoloLens WebCamTexture (and face landmark detection) example.
     /// </summary>
     [RequireComponent (typeof(OptimizationWebCamTextureToMatHelper))]
     public class HoloLensWebCamTextureExample : MonoBehaviour
     {
+        /// <summary>
+        /// Determines if use dlib face detector.
+        /// </summary>
+        public bool useDlibFaceDetecter = false;
 
         /// <summary>
-        /// The is using Dlib face detector flag.
+        /// The use dlib face detecter toggle.
         /// </summary>
-        public bool isUsingDlibFaceDetecter = false;
-
-        /// <summary>
-        /// The is using dlib face detecter toggle.
-        /// </summary>
-        public Toggle isUsingDlibFaceDetecterToggle;
+        public Toggle useDlibFaceDetecterToggle;
 
         /// <summary>
         /// The processing area mat.
@@ -50,7 +48,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         Texture2D texture;
 
         /// <summary>
-        /// The web cam texture to mat helper.
+        /// The webcam texture to mat helper.
         /// </summary>
         OptimizationWebCamTextureToMatHelper webCamTextureToMatHelper;
 
@@ -77,28 +75,26 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         //        public Vector2 clippingOffset = new Vector2(0.0f, 0.0f);
         //        public float vignetteScale = 0.3f;
 
-        //        Mat dstMatClippingROI;
-
 
         // Use this for initialization
         void Start ()
         {
-            isUsingDlibFaceDetecterToggle.isOn = isUsingDlibFaceDetecter;
+            useDlibFaceDetecterToggle.isOn = useDlibFaceDetecter;
 
             cascade = new CascadeClassifier (OpenCVForUnity.Utils.getFilePath ("haarcascade_frontalface_alt.xml"));
 
             faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("shape_predictor_68_face_landmarks.dat"));
 
             webCamTextureToMatHelper = gameObject.GetComponent<OptimizationWebCamTextureToMatHelper> ();
-            webCamTextureToMatHelper.Init ();
+            webCamTextureToMatHelper.Initialize ();
         }
 
         /// <summary>
-        /// Raises the web cam texture to mat helper inited event.
+        /// Raises the web cam texture to mat helper initialized event.
         /// </summary>
-        public void OnWebCamTextureToMatHelperInited ()
+        public void OnWebCamTextureToMatHelperInitialized ()
         {
-            Debug.Log ("OnWebCamTextureToMatHelperInited");
+            Debug.Log ("OnWebCamTextureToMatHelperInitialized");
         
             Mat webCamTextureMat = webCamTextureToMatHelper.GetDownScaleMat (webCamTextureToMatHelper.GetMat ());
         
@@ -200,7 +196,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                 // detect faces.
                 List<OpenCVForUnity.Rect> detectResult = new List<OpenCVForUnity.Rect> ();
-                if (isUsingDlibFaceDetecter) {
+                if (useDlibFaceDetecter) {
                     
                     List<UnityEngine.Rect> result = faceLandmarkDetector.Detect ();
 
@@ -289,9 +285,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         /// <summary>
-        /// Raises the back button event.
+        /// Raises the back button click event.
         /// </summary>
-        public void OnBackButton ()
+        public void OnBackButtonClick ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
@@ -301,46 +297,46 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         /// <summary>
-        /// Raises the play button event.
+        /// Raises the play button click event.
         /// </summary>
-        public void OnPlayButton ()
+        public void OnPlayButtonClick ()
         {
             webCamTextureToMatHelper.Play ();
         }
 
         /// <summary>
-        /// Raises the pause button event.
+        /// Raises the pause button click event.
         /// </summary>
-        public void OnPauseButton ()
+        public void OnPauseButtonClick ()
         {
             webCamTextureToMatHelper.Pause ();
         }
 
         /// <summary>
-        /// Raises the stop button event.
+        /// Raises the stop button click event.
         /// </summary>
-        public void OnStopButton ()
+        public void OnStopButtonClick ()
         {
             webCamTextureToMatHelper.Stop ();
         }
 
         /// <summary>
-        /// Raises the change camera button event.
+        /// Raises the change camera button click event.
         /// </summary>
-        public void OnChangeCameraButton ()
+        public void OnChangeCameraButtonClick ()
         {
-            webCamTextureToMatHelper.Init (null, webCamTextureToMatHelper.requestWidth, webCamTextureToMatHelper.requestHeight, !webCamTextureToMatHelper.requestIsFrontFacing);
+            webCamTextureToMatHelper.Initialize (null, webCamTextureToMatHelper.requestedWidth, webCamTextureToMatHelper.requestedHeight, !webCamTextureToMatHelper.requestedIsFrontFacing);
         }
 
         /// <summary>
-        /// Raises the use Dlib face detector toggle event.
+        /// Raises the use Dlib face detector toggle value changed event.
         /// </summary>
-        public void OnIsUsingDlibFaceDetecterToggle ()
+        public void OnUseDlibFaceDetecterToggleValueChanged ()
         {
-            if (isUsingDlibFaceDetecterToggle.isOn) {
-                isUsingDlibFaceDetecter = true;
+            if (useDlibFaceDetecterToggle.isOn) {
+                useDlibFaceDetecter = true;
             } else {
-                isUsingDlibFaceDetecter = false;
+                useDlibFaceDetecter = false;
             }
         }
     }

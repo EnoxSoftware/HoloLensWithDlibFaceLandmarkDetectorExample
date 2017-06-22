@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using UnityEngine.UI;
 using OpenCVForUnity.RectangleTrack;
 using System.Threading;
+using UnityEngine.EventSystems;
 
 #if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
@@ -15,27 +16,46 @@ using DlibFaceLandmarkDetector;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
-
     /// <summary>
-    /// HoloLens AR head example.
+    /// HoloLens AR head example. (Example of AR head using the OpenCVForUnity on Hololens)
     /// </summary>
     [RequireComponent(typeof(OptimizationWebCamTextureToMatHelper))]
     public class HoloLensARHeadExample : MonoBehaviour
     {
-        /// <summary>
-        /// The enable.
-        /// </summary>
-        public bool enable = true;
+        [SerializeField, HeaderAttribute ("Preview")]
 
         /// <summary>
-        /// The is using separate detection.
+        /// The preview quad.
         /// </summary>
-        public bool isUsingSeparateDetection = false;
+        public GameObject previewQuad;
 
         /// <summary>
-        /// The using separate detection toggle.
+        /// Determines if displays the camera preview.
         /// </summary>
-        public Toggle isUsingSeparateDetectionToggle;
+        public bool displayCameraPreview;
+
+        /// <summary>
+        /// The toggle for switching the camera preview display state.
+        /// </summary>
+        public Toggle displayCameraPreviewToggle;
+
+
+        [SerializeField, HeaderAttribute ("Detection")]
+
+        /// <summary>
+        /// Determines if enables the detection.
+        /// </summary>
+        public bool enableDetection = true;
+
+        /// <summary>
+        /// Determines if uses separate detection.
+        /// </summary>
+        public bool useSeparateDetection = false;
+
+        /// <summary>
+        /// The use separate detection toggle.
+        /// </summary>
+        public Toggle useSeparateDetectionToggle;
 
         /// <summary>
         /// The min detection size ratio.
@@ -46,34 +66,34 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         [SerializeField, HeaderAttribute ("AR")]
 
         /// <summary>
-        /// The is showing axes.
+        /// Determines if displays axes.
         /// </summary>
-        public bool isShowingAxes;
+        public bool displayAxes;
 
         /// <summary>
-        /// The is showing axes toggle.
+        /// The display axes toggle.
         /// </summary>
-        public Toggle isShowingAxesToggle;
+        public Toggle displayAxesToggle;
 
         /// <summary>
-        /// The is showing head.
+        /// Determines if displays head.
         /// </summary>
-        public bool isShowingHead;
+        public bool displayHead;
 
         /// <summary>
-        /// The is showing head toggle.
+        /// Determines if displays head.
         /// </summary>
-        public Toggle isShowingHeadToggle;
+        public Toggle displayHeadToggle;
 
         /// <summary>
-        /// The is showing effects.
+        /// Determines if displays effects.
         /// </summary>
-        public bool isShowingEffects;
+        public bool displayEffects;
 
         /// <summary>
-        /// The is showing effects toggle.
+        /// The display effects toggle.
         /// </summary>
-        public Toggle isShowingEffectsToggle;
+        public Toggle displayEffectsToggle;
 
         /// <summary>
         /// The axes.
@@ -101,46 +121,44 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         public GameObject mouth;
 
         /// <summary>
+        /// The AR game object.
+        /// </summary>
+        public GameObject arGameObject;
+
+        /// <summary>
+        /// The AR camera.
+        /// </summary>
+        public Camera arCamera;
+
+        /// <summary>
         /// The mouth particle system.
         /// </summary>
         ParticleSystem[] mouthParticleSystem;
 
         /// <summary>
-        /// The AR game object.
-        /// </summary>
-        public GameObject ARGameObject;
-
-        /// <summary>
-        /// The AR camera.
-        /// </summary>
-        public Camera ARCamera;
-
-
-        /// <summary>
-        /// The cam matrix.
+        /// The cameraparam matrix.
         /// </summary>
         Mat camMatrix;
 
         /// <summary>
-        /// The invert Y.
+        /// The matrix that inverts the Y axis.
         /// </summary>
         Matrix4x4 invertYM;
 
         /// <summary>
-        /// The transformation m.
-        /// </summary>
-        Matrix4x4 transformationM;
-
-        /// <summary>
-        /// The invert Z.
+        /// The matrix that inverts the Z axis.
         /// </summary>
         Matrix4x4 invertZM;
 
         /// <summary>
-        /// The ar m.
+        /// The transformation matrix.
+        /// </summary>
+        Matrix4x4 transformationM;
+
+        /// <summary>
+        /// The transformation matrix for AR.
         /// </summary>
         Matrix4x4 ARM;
-
 
         /// <summary>
         /// The 3d face object points.
@@ -151,7 +169,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// The image points.
         /// </summary>
         MatOfPoint2f imagePoints;
-
 
         /// <summary>
         /// The rvec.
@@ -169,7 +186,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         Mat rotMat;
 
         /// <summary>
-        /// The web cam texture to mat helper.
+        /// The webcam texture to mat helper.
         /// </summary>
         OptimizationWebCamTextureToMatHelper webCamTextureToMatHelper;
 
@@ -202,94 +219,95 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         // Camera matrix value of Hololens camera 896x504 size. 
         // These values ​​are unique to my device, obtained from "Windows.Media.Devices.Core.CameraIntrinsics" class. (https://docs.microsoft.com/en-us/uwp/api/windows.media.devices.core.cameraintrinsics)
         // (can adjust the position of the AR hologram with the values ​​of cx and cy. see http://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html)
-        private double fx = 1035.149;//focal length x.
-        private double fy = 1034.633;//focal length y.
-        private double cx = 404.9134;//principal point x.
-        private double cy = 236.2834;//principal point y.
-        private MatOfDouble distCoeffs;
-        private double distCoeffs1 = 0.2036923;//radial distortion coefficient k1.
-        private double distCoeffs2 = -0.2035773;//radial distortion coefficient k2.
-        private double distCoeffs3 = 0.0;//tangential distortion coefficient p1.
-        private double distCoeffs4 = 0.0;//tangential distortion coefficient p2.
-        private double distCoeffs5 = -0.2388065;//radial distortion coefficient k3.
+        double fx = 1035.149;//focal length x.
+        double fy = 1034.633;//focal length y.
+        double cx = 404.9134;//principal point x.
+        double cy = 236.2834;//principal point y.
+        MatOfDouble distCoeffs;
+        double distCoeffs1 = 0.2036923;//radial distortion coefficient k1.
+        double distCoeffs2 = -0.2035773;//radial distortion coefficient k2.
+        double distCoeffs3 = 0.0;//tangential distortion coefficient p1.
+        double distCoeffs4 = 0.0;//tangential distortion coefficient p2.
+        double distCoeffs5 = -0.2388065;//radial distortion coefficient k3.
 
+        Mat grayMat4Thread;
+        CascadeClassifier cascade4Thread;
+        bool isDetecting = false;
+        bool hadUpdatedDetectionResult = false;
+        readonly static Queue<Action> ExecuteOnMainThread = new Queue<Action>();
+        System.Object sync = new System.Object ();
 
-        private Mat grayMat4Thread;
-        private CascadeClassifier cascade4Thread;
-        private bool detecting = false;
-        private bool didUpdateTheDetectionResult = false;
-        private readonly static Queue<Action> ExecuteOnMainThread = new Queue<Action>();
-        private System.Object sync = new System.Object ();
-
-        private bool _isThreadRunning = false;
-        private bool isThreadRunning {
+        bool _isThreadRunning = false;
+        bool isThreadRunning {
             get { lock (sync)
                 return _isThreadRunning; }
             set { lock (sync)
                 _isThreadRunning = value; }
         }
 
-        private RectangleTracker rectangleTracker;
-        private float coeffTrackingWindowSize = 2.0f;
-        private float coeffObjectSizeToTrack = 0.85f;
-        private Rect[] rectsWhereRegions;
-        private List<Rect> detectedObjectsInRegions = new List<Rect> ();
-        private List<Rect> resultObjects = new List<Rect> ();
+        RectangleTracker rectangleTracker;
+        float coeffTrackingWindowSize = 2.0f;
+        float coeffObjectSizeToTrack = 0.85f;
+        Rect[] rectsWhereRegions;
+        List<Rect> detectedObjectsInRegions = new List<Rect> ();
+        List<Rect> resultObjects = new List<Rect> ();
+
+        bool applyEstimationPose = true;
 
         // Use this for initialization
         void Start ()
         {
-            isUsingSeparateDetectionToggle.isOn = isUsingSeparateDetection;
-
-            isShowingAxesToggle.isOn = isShowingAxes;
-            isShowingHeadToggle.isOn = isShowingHead;
-            isShowingEffectsToggle.isOn = isShowingEffects;
+            displayCameraPreviewToggle.isOn = displayCameraPreview;
+            useSeparateDetectionToggle.isOn = useSeparateDetection;
+            displayAxesToggle.isOn = displayAxes;
+            displayHeadToggle.isOn = displayHead;
+            displayEffectsToggle.isOn = displayEffects;
 
             webCamTextureToMatHelper = gameObject.GetComponent<OptimizationWebCamTextureToMatHelper> ();
-            webCamTextureToMatHelper.Init ();
+            webCamTextureToMatHelper.Initialize ();
 
             rectangleTracker = new RectangleTracker ();
             faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("shape_predictor_68_face_landmarks.dat"));
 
             // The coordinates of the detection object on the real world space connected with the pixel coordinates.(mm)
             objectPoints = new MatOfPoint3f (
-                new Point3 (-31, 72, 86),//l eye (Interpupillary breadth)
-                new Point3 (31, 72, 86),//r eye (Interpupillary breadth)
-                new Point3 (0, 40, 114),//nose (Nose top)
-                new Point3 (-20, 15, 90),//l mouse (Mouth breadth)
-                new Point3 (20, 15, 90),//r mouse (Mouth breadth)
-                new Point3 (-69, 76, -2),//l ear (Bitragion breadth)
-                new Point3 (69, 76, -2)//r ear (Bitragion breadth)
+                new Point3 (-34, 90, 83),//l eye (Interpupillary breadth)
+                new Point3 (34, 90, 83),//r eye (Interpupillary breadth)
+                new Point3 (0.0, 50, 120),//nose (Nose top)
+                new Point3 (-26, 15, 83),//l mouse (Mouth breadth)
+                new Point3 (26, 15, 83),//r mouse (Mouth breadth)
+                new Point3 (-79, 90, 0.0),//l ear (Bitragion breadth)
+                new Point3 (79, 90, 0.0)//r ear (Bitragion breadth)
             );
 
             imagePoints = new MatOfPoint2f ();
-            rvec = new Mat ();
-            tvec = new Mat ();
             rotMat = new Mat (3, 3, CvType.CV_64FC1);
         }
 
         /// <summary>
-        /// Raises the web cam texture to mat helper inited event.
+        /// Raises the web cam texture to mat helper initialized event.
         /// </summary>
-        public void OnWebCamTextureToMatHelperInited ()
+        public void OnWebCamTextureToMatHelperInitialized ()
         {
-            Debug.Log ("OnWebCamTextureToMatHelperInited");
+            Debug.Log ("OnWebCamTextureToMatHelperInitialized");
 
             Mat webCamTextureMat = webCamTextureToMatHelper.GetDownScaleMat(webCamTextureToMatHelper.GetMat ());
-
-            gameObject.GetComponent<Renderer> ().material.mainTexture = webCamTextureToMatHelper.GetWebCamTexture();
 
             Debug.Log ("Screen.width " + Screen.width + " Screen.height " + Screen.height + " Screen.orientation " + Screen.orientation);
 
             float width = webCamTextureMat.width();
             float height = webCamTextureMat.height();
-            gameObject.transform.localScale = new Vector3 (1, height/width, 1);
+
+            texture = new Texture2D (webCamTextureMat.cols (), webCamTextureMat.rows (), TextureFormat.RGBA32, false);
+            previewQuad.GetComponent<MeshRenderer>().material.mainTexture = texture;
+            previewQuad.transform.localScale = new Vector3 (1, height/width, 1);
+            previewQuad.SetActive (displayCameraPreview);
 
 
             double fx = this.fx;
             double fy = this.fy;
-            double cx = this.cx / webCamTextureToMatHelper.DOWNSCALE_RATIO;
-            double cy = this.cy / webCamTextureToMatHelper.DOWNSCALE_RATIO;
+            double cx = this.cx / webCamTextureToMatHelper.downscaleRatio;
+            double cy = this.cy / webCamTextureToMatHelper.downscaleRatio;
 
             camMatrix = new Mat (3, 3, CvType.CV_64FC1);
             camMatrix.put (0, 0, fx);
@@ -398,6 +416,16 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             camMatrix.Dispose ();
             distCoeffs.Dispose ();
+
+            if (rvec != null) {
+                rvec.Dispose ();
+                rvec = null;
+            }
+
+            if (tvec != null) {
+                tvec.Dispose ();
+                tvec = null;
+            }
         }
 
         /// <summary>
@@ -424,8 +452,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 Imgproc.cvtColor (rgbaMat, grayMat, Imgproc.COLOR_RGBA2GRAY);
                 Imgproc.equalizeHist (grayMat, grayMat);
 
-                if (enable && !detecting ) {
-                    detecting = true;
+                if (enableDetection && !isDetecting ) {
+                    isDetecting = true;
 
                     grayMat.copyTo (grayMat4Thread);
 
@@ -435,10 +463,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 OpenCVForUnityUtils.SetImage (faceLandmarkDetector, grayMat);
 
                 Rect[] rects;
-                if (!isUsingSeparateDetection) {
-                    if (didUpdateTheDetectionResult) 
+                if (!useSeparateDetection) {
+                    if (hadUpdatedDetectionResult) 
                     {
-                        didUpdateTheDetectionResult = false;
+                        hadUpdatedDetectionResult = false;
 
                         rectangleTracker.UpdateTrackedObjects (detectionResult.toList());
                     }
@@ -458,12 +486,17 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
                         UpdateARHeadTransform (points);
+
+                        if (displayCameraPreview) {
+                            //draw landmark points
+                            OpenCVForUnityUtils.DrawFaceLandmark (rgbaMat, points, new Scalar (0, 255, 0, 255), 2);
+                        }
                     }
 
                 } else {
 
-                    if (didUpdateTheDetectionResult) {
-                        didUpdateTheDetectionResult = false;
+                    if (hadUpdatedDetectionResult) {
+                        hadUpdatedDetectionResult = false;
 
                         //Debug.Log("process: get rectsWhereRegions were got from detectionResult");
                         rectsWhereRegions = detectionResult.toArray ();
@@ -476,14 +509,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     if (rectsWhereRegions.Length > 0) {
                         int len = rectsWhereRegions.Length;
                         for (int i = 0; i < len; i++) {
-                            detectInRegion (grayMat, rectsWhereRegions [i], detectedObjectsInRegions);
+                            DetectInRegion (grayMat, rectsWhereRegions [i], detectedObjectsInRegions);
                         }
                     }
 
                     rectangleTracker.UpdateTrackedObjects (detectedObjectsInRegions);
                     rectangleTracker.GetObjects (resultObjects, true);
 
-                    if(resultObjects.Count > 0){
+                    if(resultObjects.Count > 0) {
 
                         OpenCVForUnity.Rect rect = resultObjects [0];
 
@@ -494,11 +527,19 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
                         UpdateARHeadTransform (points);
+
+                        if (displayCameraPreview) {
+                            //draw landmark points
+                            OpenCVForUnityUtils.DrawFaceLandmark (rgbaMat, points, new Scalar (0, 255, 0, 255), 2);
+                        }
                     }
+                }
+
+                if (displayCameraPreview) {
+                    OpenCVForUnity.Utils.fastMatToTexture2D (rgbaMat, texture);
                 }
             }
         }
-
 
         private void UpdateARHeadTransform(List<Vector2> points)
         {
@@ -506,39 +547,51 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             imagePoints.fromArray (
                 new Point ((points [38].x + points [41].x) / 2, (points [38].y + points [41].y) / 2),//l eye (Interpupillary breadth)
                 new Point ((points [43].x + points [46].x) / 2, (points [43].y + points [46].y) / 2),//r eye (Interpupillary breadth)
-                new Point (points [33].x, points [33].y),//nose (Nose top)
+                new Point (points [30].x, points [30].y),//nose (Nose top)
                 new Point (points [48].x, points [48].y),//l mouth (Mouth breadth)
-                new Point (points [54].x, points [54].y) //r mouth (Mouth breadth)
-                    ,
+                new Point (points [54].x, points [54].y),//r mouth (Mouth breadth)
                 new Point (points [0].x, points [0].y),//l ear (Bitragion breadth)
                 new Point (points [16].x, points [16].y)//r ear (Bitragion breadth)
             );
+                
+            // Estimate head pose.
+            if (rvec == null || tvec == null) {
+                rvec = new Mat (3, 1, CvType.CV_64FC1);
+                tvec = new Mat (3, 1, CvType.CV_64FC1);
+                Calib3d.solvePnP (objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec);
+            }
 
-            //Estimate head pose.
-            Calib3d.solvePnP (objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec);
+            double tvec_z = tvec.get (2, 0) [0];
 
+            if (double.IsNaN(tvec_z) || tvec_z < 0) { // if tvec is wrong data, do not use extrinsic guesses.
+                Calib3d.solvePnP (objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec);
+            }else{
+                Calib3d.solvePnP (objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec, true, Calib3d.SOLVEPNP_ITERATIVE);
+            }
 
-            if (tvec.get (2, 0) [0] > 0) {
+//            Debug.Log (tvec.dump());
+
+            if (applyEstimationPose && !double.IsNaN(tvec_z)) {
 
                 if (Mathf.Abs ((float)(points [43].y - points [46].y)) > Mathf.Abs ((float)(points [42].x - points [45].x)) / 6.0) {
-                    if (isShowingEffects)
+                    if (displayEffects)
                         rightEye.SetActive (true);
                 }
 
                 if (Mathf.Abs ((float)(points [38].y - points [41].y)) > Mathf.Abs ((float)(points [39].x - points [36].x)) / 6.0) {
-                    if (isShowingEffects)
+                    if (displayEffects)
                         leftEye.SetActive (true);
                 }
-                if (isShowingHead)
+                if (displayHead)
                     head.SetActive (true);
-                if (isShowingAxes)
+                if (displayAxes)
                     axes.SetActive (true);
 
 
                 float noseDistance = Mathf.Abs ((float)(points [27].y - points [33].y));
                 float mouseDistance = Mathf.Abs ((float)(points [62].y - points [66].y));
                 if (mouseDistance > noseDistance / 5.0) {
-                    if (isShowingEffects) {
+                    if (displayEffects) {
                         mouth.SetActive (true);
                         foreach (ParticleSystem ps in mouthParticleSystem) {
                             ps.enableEmission = true;
@@ -546,7 +599,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         }
                     }
                 } else {
-                    if (isShowingEffects) {
+                    if (displayEffects) {
                         foreach (ParticleSystem ps in mouthParticleSystem) {
                             ps.enableEmission = false;
                         }
@@ -555,9 +608,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                 Calib3d.Rodrigues (rvec, rotMat);
 
-                transformationM.SetRow (0, new Vector4 ((float)rotMat.get (0, 0) [0], (float)rotMat.get (0, 1) [0], (float)rotMat.get (0, 2) [0], (float)tvec.get (0, 0) [0] / 1000));
-                transformationM.SetRow (1, new Vector4 ((float)rotMat.get (1, 0) [0], (float)rotMat.get (1, 1) [0], (float)rotMat.get (1, 2) [0], (float)tvec.get (1, 0) [0] / 1000));
-                transformationM.SetRow (2, new Vector4 ((float)rotMat.get (2, 0) [0], (float)rotMat.get (2, 1) [0], (float)rotMat.get (2, 2) [0], (float)tvec.get (2, 0) [0] / 1000 / webCamTextureToMatHelper.DOWNSCALE_RATIO));
+                transformationM.SetRow (0, new Vector4 ((float)rotMat.get (0, 0) [0], (float)rotMat.get (0, 1) [0], (float)rotMat.get (0, 2) [0], (float)(tvec.get (0, 0) [0] / 1000.0)));
+                transformationM.SetRow (1, new Vector4 ((float)rotMat.get (1, 0) [0], (float)rotMat.get (1, 1) [0], (float)rotMat.get (1, 2) [0], (float)(tvec.get (1, 0) [0] / 1000.0)));
+                transformationM.SetRow (2, new Vector4 ((float)rotMat.get (2, 0) [0], (float)rotMat.get (2, 1) [0], (float)rotMat.get (2, 2) [0], (float)(tvec.get (2, 0) [0] / 1000.0 / webCamTextureToMatHelper.downscaleRatio)));
                 transformationM.SetRow (3, new Vector4 (0, 0, 0, 1));
 
                 // right-handed coordinates system (OpenCV) to left-handed one (Unity)
@@ -567,9 +620,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 ARM = ARM * invertZM;
 
                 // Apply camera transform matrix.
-                ARM = ARCamera.transform.localToWorldMatrix * ARM;
+                ARM = arCamera.transform.localToWorldMatrix * ARM;
 
-                ARUtils.SetTransformFromMatrix (ARGameObject.transform, ref ARM);
+                ARUtils.SetTransformFromMatrix (arGameObject.transform, ref ARM);
             }
         }
 
@@ -598,12 +651,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         {
             isThreadRunning = true;
 
-            ObjectDetect ();
+            DetectObject ();
 
             lock (sync) {
                 if (ExecuteOnMainThread.Count == 0) {
                     ExecuteOnMainThread.Enqueue (() => {
-                        DetectDone ();
+                        OnDetectionDone ();
                     });
                 }
             }
@@ -611,7 +664,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             isThreadRunning = false;
         }
 
-        private void ObjectDetect()
+        private void DetectObject()
         {
             MatOfRect objects = new MatOfRect ();
             if (cascade4Thread != null)
@@ -621,14 +674,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             detectionResult = objects;
         }
 
-        private void DetectDone()
+        private void OnDetectionDone()
         {
-            didUpdateTheDetectionResult = true;
+            hadUpdatedDetectionResult = true;
 
-            detecting = false;
+            isDetecting = false;
         }
 
-        private void detectInRegion (Mat img, Rect r, List<Rect> detectedObjectsInRegions)
+        private void DetectInRegion (Mat img, Rect r, List<Rect> detectedObjectsInRegions)
         {
             Rect r0 = new Rect (new Point (), img.size ());
             Rect r1 = new Rect (r.x, r.y, r.width, r.height);
@@ -673,18 +726,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             if (rectangleTracker != null)
                 rectangleTracker.Dispose ();
 
-            if (rvec != null)
-                rvec.Dispose ();
-            if (tvec != null)
-                tvec.Dispose ();
             if (rotMat != null)
                 rotMat.Dispose ();
         }
 
         /// <summary>
-        /// Raises the back button event.
+        /// Raises the back button clicked click event.
         /// </summary>
-        public void OnBackButton ()
+        public void OnBackButtonClick ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
@@ -694,46 +743,59 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         /// <summary>
-        /// Raises the play button event.
+        /// Raises the play button clicked click event.
         /// </summary>
-        public void OnPlayButton ()
+        public void OnPlayButtonClick ()
         {
             webCamTextureToMatHelper.Play ();
         }
 
         /// <summary>
-        /// Raises the pause button event.
+        /// Raises the pause button clicked click click event.
         /// </summary>
-        public void OnPauseButton ()
+        public void OnPauseButtonClick ()
         {
             webCamTextureToMatHelper.Pause ();
         }
 
         /// <summary>
-        /// Raises the stop button event.
+        /// Raises the stop button clicked click event.
         /// </summary>
-        public void OnStopButton ()
+        public void OnStopButtonClick ()
         {
             webCamTextureToMatHelper.Stop ();
         }
 
         /// <summary>
-        /// Raises the change camera button event.
+        /// Raises the change camera button clicked click event.
         /// </summary>
-        public void OnChangeCameraButton ()
+        public void OnChangeCameraButtonClick ()
         {
-            webCamTextureToMatHelper.Init (null, webCamTextureToMatHelper.requestWidth, webCamTextureToMatHelper.requestHeight, !webCamTextureToMatHelper.requestIsFrontFacing);
+            webCamTextureToMatHelper.Initialize (null, webCamTextureToMatHelper.requestedWidth, webCamTextureToMatHelper.requestedHeight, !webCamTextureToMatHelper.requestedIsFrontFacing);
         }
 
         /// <summary>
-        /// Raises the is using separate detection toggle event.
+        /// Raises the display camera preview toggle value changed event.
         /// </summary>
-        public void OnIsUsingSeparateDetectionToggle ()
+        public void OnDisplayCamreaPreviewToggleValueChanged ()
         {
-            if (isUsingSeparateDetectionToggle.isOn) {
-                isUsingSeparateDetection = true;
+            if (displayCameraPreviewToggle.isOn) {
+                displayCameraPreview = true;
             } else {
-                isUsingSeparateDetection = false;
+                displayCameraPreview = false;
+            }
+            previewQuad.SetActive (displayCameraPreview);
+        }
+
+        /// <summary>
+        /// Raises the use separate detection toggle value changed event.
+        /// </summary>
+        public void OnUseSeparateDetectionToggleValueChanged ()
+        {
+            if (useSeparateDetectionToggle.isOn) {
+                useSeparateDetection = true;
+            } else {
+                useSeparateDetection = false;
             }
 
             if (rectangleTracker != null)
@@ -741,43 +803,64 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         /// <summary>
-        /// Raises the is showing axes toggle event.
+        /// Raises the display axes toggle value changed event.
         /// </summary>
-        public void OnIsShowingAxesToggle ()
+        public void OnDisplayAxesToggleValueChanged ()
         {
-            if (isShowingAxesToggle.isOn) {
-                isShowingAxes = true;
+            if (displayAxesToggle.isOn) {
+                displayAxes = true;
             } else {
-                isShowingAxes = false;
+                displayAxes = false;
                 axes.SetActive (false);
             }
         }
 
         /// <summary>
-        /// Raises the is showing head toggle event.
+        /// Raises the display head toggle value changed event.
         /// </summary>
-        public void OnIsShowingHeadToggle ()
+        public void OnDisplayHeadToggleValueChanged ()
         {
-            if (isShowingHeadToggle.isOn) {
-                isShowingHead = true;
+            if (displayHeadToggle.isOn) {
+                displayHead = true;
             } else {
-                isShowingHead = false;
+                displayHead = false;
                 head.SetActive (false);
             }
         }
 
         /// <summary>
-        /// Raises the is showin effects toggle event.
+        /// Raises the display effects toggle value changed event.
         /// </summary>
-        public void OnIsShowinEffectsToggle ()
+        public void OnDisplayEffectsToggleValueChanged ()
         {
-            if (isShowingEffectsToggle.isOn) {
-                isShowingEffects = true;
+            if (displayEffectsToggle.isOn) {
+                displayEffects = true;
             } else {
-                isShowingEffects = false;
+                displayEffects = false;
                 rightEye.SetActive (false);
                 leftEye.SetActive (false);
                 mouth.SetActive (false);
+            }
+        }
+
+        /// <summary>
+        /// Raises the tapped event.
+        /// </summary>
+        public void OnTapped ()
+        {
+            if (EventSystem.current.IsPointerOverGameObject ())
+                return;
+
+            if (applyEstimationPose) {
+                applyEstimationPose = false;
+                head.GetComponent<MeshRenderer> ().material.color = Color.gray;
+            } else {
+                applyEstimationPose = true;
+                head.GetComponent<MeshRenderer> ().material.color = Color.red;
+
+                // resets extrinsic guess.
+                rvec = null;
+                tvec = null;
             }
         }
     }

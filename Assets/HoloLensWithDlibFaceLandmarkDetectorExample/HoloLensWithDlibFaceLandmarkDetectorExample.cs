@@ -9,7 +9,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     public class HoloLensWithDlibFaceLandmarkDetectorExample : MonoBehaviour
     {
-        
         // Use this for initialization
         void Start ()
         {
@@ -22,7 +21,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             
         }
 
-        public void OnShowLicenseButton ()
+        public void OnShowLicenseButtonClick ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("ShowLicense");
@@ -31,7 +30,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             #endif
         }
 
-        public void OnHoloLensPhotoCaptureExample ()
+        public void OnHoloLensPhotoCaptureExampleButtonClick ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("HoloLensPhotoCaptureExample");
@@ -40,7 +39,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             #endif
         }
 
-        public void OnHoloLensWebCamTextureExample ()
+        public void OnHoloLensWebCamTextureExampleButtonClick ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("HoloLensWebCamTextureExample");
@@ -49,7 +48,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             #endif
         }
         
-        public void OnHoloLensFaceLandmarkDetectionExample ()
+        public void OnHoloLensFaceLandmarkDetectionExampleButtonClick ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("HoloLensFaceLandmarkDetectionExample");
@@ -58,7 +57,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             #endif
         }
 
-        public void OnHoloLensARHeadExample ()
+        public void OnHoloLensARHeadExampleButtonClick ()
         {
             #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene ("HoloLensARHeadExample");

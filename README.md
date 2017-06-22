@@ -14,8 +14,8 @@ Demo Video
 Environment
 -----
 Windows 10  
-Unity 5.5.2f1  
-HoloToolKit v1.5.6.0  ([https://github.com/Microsoft/HoloToolkit-Unity/releases](https://github.com/Microsoft/HoloToolkit-Unity/releases))  
+Unity 5.6.1f1  
+HoloToolKit v1.5.7.0  ([https://github.com/Microsoft/HoloToolkit-Unity/releases](https://github.com/Microsoft/HoloToolkit-Unity/releases))  
 OpenCV for Unity 2.1.6 ([https://www.assetstore.unity3d.com/en/#!/content/21088](https://www.assetstore.unity3d.com/en/#!/content/21088))  
 Dlib FaceLandmarkDetector 1.1.0 ([https://www.assetstore.unity3d.com/en/#!/content/64314](https://www.assetstore.unity3d.com/en/#!/content/64314))  
 
@@ -23,7 +23,7 @@ Dlib FaceLandmarkDetector 1.1.0 ([https://www.assetstore.unity3d.com/en/#!/conte
 Setup
 -----
 * Create New Project. (HoloLensWithDlibFaceLandmarkDetectorExample)
-* Import HoloToolKit-Unity-v1.5.6.0.unitypackage.
+* Import HoloToolKit-Unity-v1.5.7.0.unitypackage.
 * Setup HoloToolKit. (HoloToolKit > Configure > Apply HoloLens Project Setting)
 * Import OpenCVForUnity from AssetStore.
 * Import DlibFaceLandmarkDetector from AssetStore.

@@ -261,7 +261,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 384048162}
-        m_MethodName: OnHoloLensFaceLandmarkDetectionExample
+        m_MethodName: OnHoloLensFaceLandmarkDetectionExampleButtonClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -407,7 +407,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 384048162}
-        m_MethodName: OnHoloLensPhotoCaptureExample
+        m_MethodName: OnHoloLensPhotoCaptureExampleButtonClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -688,7 +688,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 384048162}
-        m_MethodName: OnHoloLensARHeadExample
+        m_MethodName: OnHoloLensARHeadExampleButtonClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1395,7 +1395,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 384048162}
-        m_MethodName: OnShowLicenseButton
+        m_MethodName: OnShowLicenseButtonClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1731,7 +1731,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 384048162}
-        m_MethodName: OnHoloLensWebCamTextureExample
+        m_MethodName: OnHoloLensWebCamTextureExampleButtonClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

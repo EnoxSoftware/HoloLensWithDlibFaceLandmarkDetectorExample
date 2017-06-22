@@ -13,7 +13,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
     /// </summary>
     public static class OpenCVForUnityUtils
     {
-
         /// <summary>
         /// Sets the image.
         /// </summary>
