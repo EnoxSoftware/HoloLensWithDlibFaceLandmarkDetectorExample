@@ -14,8 +14,9 @@ using DlibFaceLandmarkDetector;
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     /// <summary>
-    /// HoloLens photo capture (and face landmark detection) example.
-    /// referring to the https://forum.unity3d.com/threads/holographic-photo-blending-with-photocapture.416023/.
+    /// HoloLens photo capture example.
+    /// An example of holographic photo blending using the PhotocCapture class on Hololens.
+    /// Referring to https://forum.unity3d.com/threads/holographic-photo-blending-with-photocapture.416023/.
     /// </summary>
     public class HoloLensPhotoCaptureExample:MonoBehaviour
     {
@@ -194,9 +195,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         /// <summary>
-        /// Raises the disable event.
+        /// Raises the destroy event.
         /// </summary>
-        void OnDisable ()
+        void OnDestroy ()
         {
             if (m_PhotoCaptureObj != null)
                 m_PhotoCaptureObj.StopPhotoModeAsync (OnStopPhotoMode);

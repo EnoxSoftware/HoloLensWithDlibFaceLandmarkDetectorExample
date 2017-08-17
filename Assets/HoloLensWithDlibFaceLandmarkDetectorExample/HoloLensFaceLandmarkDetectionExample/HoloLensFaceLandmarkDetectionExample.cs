@@ -16,8 +16,9 @@ using DlibFaceLandmarkDetector;
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     /// <summary>
-    /// HoloLens face landmark detection example. (Example of face landmark detection using the OpenCVForUnity and the DlibLandmarkDetector on Hololens)
-    /// This cord referred to https://github.com/Itseez/opencv/blob/master/modules/objdetect/src/detection_based_tracker.cpp.
+    /// HoloLens face landmark detection example.
+    /// An example of face landmark detection using OpenCVForUnity and DlibLandmarkDetector on Hololens.
+    /// Referring to https://github.com/Itseez/opencv/blob/master/modules/objdetect/src/detection_based_tracker.cpp.
     /// </summary>
     [RequireComponent(typeof(OptimizationWebCamTextureToMatHelper))]
     public class HoloLensFaceLandmarkDetectionExample : MonoBehaviour
@@ -475,9 +476,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         /// <summary>
-        /// Raises the disable event.
+        /// Raises the destroy event.
         /// </summary>
-        void OnDisable ()
+        void OnDestroy ()
         {
             webCamTextureToMatHelper.Dispose ();
 

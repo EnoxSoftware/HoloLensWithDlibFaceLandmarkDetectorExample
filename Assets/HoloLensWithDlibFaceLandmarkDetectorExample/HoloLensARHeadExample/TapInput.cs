@@ -8,7 +8,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     public class TapInput : MonoBehaviour
     {
-
         public UnityEvent OnTappedEvent;
 
         GestureRecognizer recognizer;
