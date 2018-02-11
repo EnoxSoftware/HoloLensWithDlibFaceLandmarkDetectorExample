@@ -12,10 +12,10 @@ using DlibFaceLandmarkDetector;
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     /// <summary>
-    /// HoloLens webCamTexture example.
+    /// HoloLens WebCamTexture Example
     /// An example of face landmark detection using OpenCVForUnity and DlibLandmarkDetector on Hololens.
     /// </summary>
-    [RequireComponent (typeof(OptimizationWebCamTextureToMatHelper))]
+    [RequireComponent (typeof(HololensCameraStreamToMatHelper))]
     public class HoloLensWebCamTextureExample : MonoBehaviour
     {
         /// <summary>
@@ -51,7 +51,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// <summary>
         /// The webcam texture to mat helper.
         /// </summary>
-        OptimizationWebCamTextureToMatHelper webCamTextureToMatHelper;
+        HololensCameraStreamToMatHelper webCamTextureToMatHelper;
 
         /// <summary>
         /// The face landmark detector.
@@ -69,13 +69,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         OpenCVForUnity.Rect processingAreaRect;
         public Vector2 outsideClippingRatio = new Vector2 (0.17f, 0.19f);
         public Vector2 clippingOffset = new Vector2 (0.043f, -0.041f);
-        public float vignetteScale = 1.8f;
-
-        // Debug
-        //        public Vector2 outsideClippingRatio = new Vector2(0.0f, 0.0f);
-        //        public Vector2 clippingOffset = new Vector2(0.0f, 0.0f);
-        //        public float vignetteScale = 0.3f;
-
+        public float vignetteScale = 0.3f;
 
         // Use this for initialization
         void Start ()
@@ -84,9 +78,13 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             cascade = new CascadeClassifier (OpenCVForUnity.Utils.getFilePath ("haarcascade_frontalface_alt.xml"));
 
-            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("shape_predictor_68_face_landmarks.dat"));
+            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
+//            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68_for_mobile.dat"));
 
-            webCamTextureToMatHelper = gameObject.GetComponent<OptimizationWebCamTextureToMatHelper> ();
+            webCamTextureToMatHelper = gameObject.GetComponent<HololensCameraStreamToMatHelper> ();
+            #if NETFX_CORE
+            webCamTextureToMatHelper.frameMatAcquired += OnFrameMatAcquired;
+            #endif
             webCamTextureToMatHelper.Initialize ();
         }
 
@@ -97,28 +95,26 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         {
             Debug.Log ("OnWebCamTextureToMatHelperInitialized");
         
-            Mat webCamTextureMat = webCamTextureToMatHelper.GetDownScaleMat (webCamTextureToMatHelper.GetMat ());
+            Mat webCamTextureMat = webCamTextureToMatHelper.GetMat ();
         
+            #if NETFX_CORE
+            // HololensCameraStream always returns image data in BGRA format.
+            texture = new Texture2D (webCamTextureMat.cols (), webCamTextureMat.rows (), TextureFormat.BGRA32, false);
+            #else
             texture = new Texture2D (webCamTextureMat.cols (), webCamTextureMat.rows (), TextureFormat.RGBA32, false);
+            #endif
 
-            gameObject.GetComponent<Renderer> ().material.mainTexture = texture;
+            texture.wrapMode = TextureWrapMode.Clamp;
 
             Debug.Log ("Screen.width " + Screen.width + " Screen.height " + Screen.height + " Screen.orientation " + Screen.orientation);
-            Debug.Log ("webCamTextureMat.width " + webCamTextureMat.width () + " webCamTextureMat.height " + webCamTextureMat.height ());
-
 
             processingAreaRect = new OpenCVForUnity.Rect ((int)(webCamTextureMat.cols () * (outsideClippingRatio.x - clippingOffset.x)), (int)(webCamTextureMat.rows () * (outsideClippingRatio.y + clippingOffset.y)),
                 (int)(webCamTextureMat.cols () * (1f - outsideClippingRatio.x * 2)), (int)(webCamTextureMat.rows () * (1f - outsideClippingRatio.y * 2)));
             processingAreaRect = processingAreaRect.intersect (new OpenCVForUnity.Rect (0, 0, webCamTextureMat.cols (), webCamTextureMat.rows ()));
 
-            Debug.Log ("webCamTextureMat.width " + webCamTextureMat.width () + " webCamTextureMat.height " + webCamTextureMat.height ());
-            Debug.Log ("processingAreaRect.x " + processingAreaRect.x + " processingAreaRect.y " + processingAreaRect.y + " processingAreaRect.width " + processingAreaRect.width + " processingAreaRect.height " + processingAreaRect.height);
-
 
             processingAreaMat = new Mat (processingAreaRect.height, processingAreaRect.width, CvType.CV_8UC4);
-
             grayMat = new Mat (processingAreaMat.rows (), processingAreaMat.cols (), CvType.CV_8UC1);
-
             faces = new MatOfRect ();
 
 
@@ -126,9 +122,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             quad_renderer.sharedMaterial.SetTexture ("_MainTex", texture);
             quad_renderer.sharedMaterial.SetVector ("_VignetteOffset", new Vector4 (clippingOffset.x, clippingOffset.y));
 
+            Matrix4x4 projectionMatrix;
+            #if NETFX_CORE
+            projectionMatrix = webCamTextureToMatHelper.GetProjectionMatrix ();
+            quad_renderer.sharedMaterial.SetMatrix ("_CameraProjectionMatrix", projectionMatrix);
+            #else
             //This value is obtained from PhotoCapture's TryGetProjectionMatrix() method.I do not know whether this method is good.
             //Please see the discussion of this thread.Https://forums.hololens.com/discussion/782/live-stream-of-locatable-camera-webcam-in-unity
-            Matrix4x4 projectionMatrix = Matrix4x4.identity;
+            projectionMatrix = Matrix4x4.identity;
             projectionMatrix.m00 = 2.31029f;
             projectionMatrix.m01 = 0.00000f;
             projectionMatrix.m02 = 0.09614f;
@@ -146,6 +147,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             projectionMatrix.m32 = -1.00000f;
             projectionMatrix.m33 = 0.00000f;
             quad_renderer.sharedMaterial.SetMatrix ("_CameraProjectionMatrix", projectionMatrix);
+            #endif
+
             quad_renderer.sharedMaterial.SetFloat ("_VignetteScale", vignetteScale);
 
 
@@ -162,9 +165,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         {
             Debug.Log ("OnWebCamTextureToMatHelperDisposed");
 
-            processingAreaMat.Dispose ();
-            grayMat.Dispose ();
-            faces.Dispose ();
+            if (processingAreaMat != null)
+                processingAreaMat.Dispose ();
+
+            if (grayMat != null)
+                grayMat.Dispose ();
+
+            if (faces != null)
+                faces.Dispose ();
         }
 
         /// <summary>
@@ -176,13 +184,100 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log ("OnWebCamTextureToMatHelperErrorOccurred " + errorCode);
         }
 
+        #if NETFX_CORE
+        public void OnFrameMatAcquired (Mat bgraMat, Matrix4x4 projectionMatrix, Matrix4x4 cameraToWorldMatrix)
+        {
+            Mat bgraMatClipROI = new Mat (bgraMat, processingAreaRect);
+
+            bgraMatClipROI.copyTo (processingAreaMat);
+
+
+            // fill all black.
+            Imgproc.rectangle (bgraMat, new Point (0, 0), new Point (bgraMat.width (), bgraMat.height ()), new Scalar (0, 0, 0, 0), -1);
+
+
+            OpenCVForUnityUtils.SetImage (faceLandmarkDetector, processingAreaMat);
+
+            // detect faces.
+            List<OpenCVForUnity.Rect> detectResult = new List<OpenCVForUnity.Rect> ();
+            if (useDlibFaceDetecter) {
+
+                List<UnityEngine.Rect> result = faceLandmarkDetector.Detect ();
+
+                foreach (var unityRect in result) {
+                    detectResult.Add (new OpenCVForUnity.Rect ((int)unityRect.x, (int)unityRect.y, (int)unityRect.width, (int)unityRect.height));
+                }
+            } else {
+                // convert image to greyscale.
+                Imgproc.cvtColor (processingAreaMat, grayMat, Imgproc.COLOR_BGRA2GRAY);
+
+                Imgproc.equalizeHist (grayMat, grayMat);
+
+                cascade.detectMultiScale (grayMat, faces, 1.1f, 2, 0 | Objdetect.CASCADE_SCALE_IMAGE, new OpenCVForUnity.Size (grayMat.cols () * 0.15, grayMat.cols () * 0.15), new Size ());
+
+                detectResult = faces.toList ();
+
+                // Adjust to Dilb's result.
+                foreach (OpenCVForUnity.Rect r in detectResult) {
+                    r.y += (int)(r.height * 0.1f);
+                }
+            }
+
+
+            foreach (var rect in detectResult) {
+
+                //detect landmark points
+                List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
+
+                //draw landmark points
+                OpenCVForUnityUtils.DrawFaceLandmark (bgraMatClipROI, points, new Scalar (0, 255, 0, 255), 2);
+
+                //draw face rect
+                OpenCVForUnityUtils.DrawFaceRect (bgraMatClipROI, new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height), new Scalar (0, 0, 255, 255), 2);
+            }
+
+            Imgproc.putText (bgraMatClipROI, "W:" + bgraMatClipROI.width () + " H:" + bgraMatClipROI.height (), new Point (5, bgraMatClipROI.rows () - 10), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (0, 0, 255, 255), 1, Imgproc.LINE_AA, false);
+
+            Imgproc.rectangle (bgraMat, new Point (0, 0), new Point (bgraMat.width (), bgraMat.height ()), new Scalar (0, 0, 255, 255), 2);
+
+            // Draw prosessing area rectangle.
+            Imgproc.rectangle (bgraMat, processingAreaRect.tl (), processingAreaRect.br (), new Scalar (0, 255, 255, 255), 2);
+
+            bgraMatClipROI.Dispose ();
+        
+
+            UnityEngine.WSA.Application.InvokeOnAppThread(() => {
+
+                if (!webCamTextureToMatHelper.IsPlaying ()) return;
+
+                OpenCVForUnity.Utils.fastMatToTexture2D(bgraMat, texture);
+                bgraMat.Dispose ();
+
+                Matrix4x4 worldToCameraMatrix = cameraToWorldMatrix.inverse;
+
+                quad_renderer.sharedMaterial.SetMatrix ("_WorldToCameraMatrix", worldToCameraMatrix);
+
+                // Position the canvas object slightly in front
+                // of the real world web camera.
+                Vector3 position = cameraToWorldMatrix.GetColumn (3) - cameraToWorldMatrix.GetColumn (2);
+
+                // Rotate the canvas object so that it faces the user.
+                Quaternion rotation = Quaternion.LookRotation (-cameraToWorldMatrix.GetColumn (2), cameraToWorldMatrix.GetColumn (1));
+
+                gameObject.transform.position = position;
+                gameObject.transform.rotation = rotation;
+
+            }, false);
+        }
+
+        #else
+
         // Update is called once per frame
         void Update ()
         {
             if (webCamTextureToMatHelper.IsPlaying () && webCamTextureToMatHelper.DidUpdateThisFrame ()) {
             
-                Mat rgbaMat = webCamTextureToMatHelper.GetDownScaleMat (webCamTextureToMatHelper.GetMat ());
-
+                Mat rgbaMat = webCamTextureToMatHelper.GetMat ();
 
                 Mat rgbaMatClipROI = new Mat (rgbaMat, processingAreaRect);
 
@@ -251,10 +346,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             if (webCamTextureToMatHelper.IsPlaying ()) {
 
                 Matrix4x4 cameraToWorldMatrix = Camera.main.cameraToWorldMatrix;
-                ;
                 Matrix4x4 worldToCameraMatrix = cameraToWorldMatrix.inverse;
-
-                texture.wrapMode = TextureWrapMode.Clamp;
 
                 quad_renderer.sharedMaterial.SetMatrix ("_WorldToCameraMatrix", worldToCameraMatrix);
 
@@ -269,14 +361,17 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 gameObject.transform.rotation = rotation;
             }
         }
+        #endif
 
         /// <summary>
         /// Raises the destroy event.
         /// </summary>
         void OnDestroy ()
         {
-            if (webCamTextureToMatHelper != null)
-                webCamTextureToMatHelper.Dispose ();
+            #if NETFX_CORE
+            webCamTextureToMatHelper.frameMatAcquired -= OnFrameMatAcquired;
+            #endif
+            webCamTextureToMatHelper.Dispose ();
 
             if (faceLandmarkDetector != null)
                 faceLandmarkDetector.Dispose ();

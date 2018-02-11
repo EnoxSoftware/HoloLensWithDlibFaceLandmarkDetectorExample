@@ -14,8 +14,8 @@ using DlibFaceLandmarkDetector;
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     /// <summary>
-    /// HoloLens photo capture example.
-    /// An example of holographic photo blending using the PhotocCapture class on Hololens.
+    /// HoloLens PhotoCapture Example
+    /// An example of holographic photo blending using the PhotocCapture class on Hololens. (Air Tap to take a picture)
     /// Referring to https://forum.unity3d.com/threads/holographic-photo-blending-with-photocapture.416023/.
     /// </summary>
     public class HoloLensPhotoCaptureExample:MonoBehaviour
@@ -82,7 +82,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             rgbaMat = new Mat (m_Texture.height, m_Texture.width, CvType.CV_8UC4);
             colors = new Color32[rgbaMat.cols () * rgbaMat.rows ()];
-            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("shape_predictor_68_face_landmarks.dat"));
+            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
 
             PhotoCapture.CreateAsync (false, OnCreatedPhotoCaptureObject);
         }

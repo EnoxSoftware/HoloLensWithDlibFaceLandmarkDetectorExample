@@ -16,11 +16,11 @@ using DlibFaceLandmarkDetector;
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     /// <summary>
-    /// HoloLens face landmark detection example.
+    /// HoloLens Face Landmark Detection Example
     /// An example of face landmark detection using OpenCVForUnity and DlibLandmarkDetector on Hololens.
     /// Referring to https://github.com/Itseez/opencv/blob/master/modules/objdetect/src/detection_based_tracker.cpp.
     /// </summary>
-    [RequireComponent(typeof(OptimizationWebCamTextureToMatHelper))]
+    [RequireComponent(typeof(HololensCameraStreamToMatHelper))]
     public class HoloLensFaceLandmarkDetectionExample : MonoBehaviour
     {
         /// <summary>
@@ -66,7 +66,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// <summary>
         /// The webcam texture to mat helper.
         /// </summary>
-        OptimizationWebCamTextureToMatHelper webCamTextureToMatHelper;
+        HololensCameraStreamToMatHelper webCamTextureToMatHelper;
+
+        /// <summary>
+        /// The image optimization helper.
+        /// </summary>
+        ImageOptimizationHelper imageOptimizationHelper;
 
         /// <summary>
         /// The gray mat.
@@ -100,8 +105,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
         Mat grayMat4Thread;
         CascadeClassifier cascade4Thread;
-        bool isDetecting = false;
-        bool hadUpdatedDetectionResult = false;
         readonly static Queue<Action> ExecuteOnMainThread = new Queue<Action>();
         System.Object sync = new System.Object ();
 
@@ -120,6 +123,22 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         List<Rect> detectedObjectsInRegions = new List<Rect> ();
         List<Rect> resultObjects = new List<Rect> ();
 
+        bool _isDetecting = false;
+        bool isDetecting {
+            get { lock (sync)
+                return _isDetecting; }
+            set { lock (sync)
+                _isDetecting = value; }
+        }
+
+        bool _hasUpdatedDetectionResult = false;
+        bool hasUpdatedDetectionResult {
+            get { lock (sync)
+                return _hasUpdatedDetectionResult; }
+            set { lock (sync)
+                _hasUpdatedDetectionResult = value; }
+        }
+
         // Use this for initialization
         void Start ()
         {
@@ -127,11 +146,16 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             displayCameraImageToggle.isOn = displayCameraImage;
             displayDetectedFaceRectToggle.isOn = displayDetectedFaceRect;
 
-            webCamTextureToMatHelper = gameObject.GetComponent<OptimizationWebCamTextureToMatHelper> ();
+            imageOptimizationHelper = gameObject.GetComponent<ImageOptimizationHelper> ();
+            webCamTextureToMatHelper = gameObject.GetComponent<HololensCameraStreamToMatHelper> ();
+            #if NETFX_CORE
+            webCamTextureToMatHelper.frameMatAcquired += OnFrameMatAcquired;
+            #endif
             webCamTextureToMatHelper.Initialize ();
 
             rectangleTracker = new RectangleTracker ();
-            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("shape_predictor_68_face_landmarks.dat"));
+//            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
+            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68_for_mobile.dat"));
         }
 
         /// <summary>
@@ -141,9 +165,16 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         {
             Debug.Log ("OnWebCamTextureToMatHelperInitialized");
 
-            Mat webCamTextureMat = webCamTextureToMatHelper.GetDownScaleMat(webCamTextureToMatHelper.GetMat ());
+            Mat webCamTextureMat = imageOptimizationHelper.GetDownScaleMat( webCamTextureToMatHelper.GetMat ());
 
+            #if NETFX_CORE
+            // HololensCameraStream always returns image data in BGRA format.
+            texture = new Texture2D (webCamTextureMat.cols (), webCamTextureMat.rows (), TextureFormat.BGRA32, false);
+            #else
             texture = new Texture2D (webCamTextureMat.cols (), webCamTextureMat.rows (), TextureFormat.RGBA32, false);
+            #endif
+
+            texture.wrapMode = TextureWrapMode.Clamp;
 
             Debug.Log ("Screen.width " + Screen.width + " Screen.height " + Screen.height + " Screen.orientation " + Screen.orientation);
 
@@ -151,9 +182,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             quad_renderer.sharedMaterial.SetTexture ("_MainTex", texture);
             quad_renderer.sharedMaterial.SetVector ("_VignetteOffset", new Vector4(0, 0));
 
+            Matrix4x4 projectionMatrix;
+            #if NETFX_CORE
+            projectionMatrix = webCamTextureToMatHelper.GetProjectionMatrix ();
+            quad_renderer.sharedMaterial.SetMatrix ("_CameraProjectionMatrix", projectionMatrix);
+            #else
             //This value is obtained from PhotoCapture's TryGetProjectionMatrix() method.I do not know whether this method is good.
             //Please see the discussion of this thread.Https://forums.hololens.com/discussion/782/live-stream-of-locatable-camera-webcam-in-unity
-            Matrix4x4 projectionMatrix = Matrix4x4.identity;
+            projectionMatrix = Matrix4x4.identity;
             projectionMatrix.m00 = 2.31029f;
             projectionMatrix.m01 = 0.00000f;
             projectionMatrix.m02 = 0.09614f;
@@ -171,13 +207,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             projectionMatrix.m32 = -1.00000f;
             projectionMatrix.m33 = 0.00000f;
             quad_renderer.sharedMaterial.SetMatrix ("_CameraProjectionMatrix", projectionMatrix);
+            #endif
+
             quad_renderer.sharedMaterial.SetFloat ("_VignetteScale", 0.0f);
 
 
             grayMat = new Mat (webCamTextureMat.rows (), webCamTextureMat.cols (), CvType.CV_8UC1);
             cascade = new CascadeClassifier ();
             cascade.load (OpenCVForUnity.Utils.getFilePath ("lbpcascade_frontalface.xml"));
-//            cascade.load (Utils.getFilePath ("haarcascade_frontalface_alt.xml"));
 
             // "empty" method is not working on the UWP platform.
             //            if (cascade.empty ()) {
@@ -204,6 +241,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log ("OnWebCamTextureToMatHelperDisposed");
 
             StopThread ();
+            lock (sync) {
+                ExecuteOnMainThread.Clear ();
+            }
 
             if (grayMat != null)
                 grayMat.Dispose ();
@@ -228,6 +268,196 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log ("OnWebCamTextureToMatHelperErrorOccurred " + errorCode);
         }
 
+        #if NETFX_CORE
+        public void OnFrameMatAcquired (Mat bgraMat, Matrix4x4 projectionMatrix, Matrix4x4 cameraToWorldMatrix)
+        {
+            Mat downScaleFrameMat = bgraMat;
+            if (imageOptimizationHelper.downscaleRatio != 1) {
+                downScaleFrameMat = new Mat ();
+                Imgproc.resize (bgraMat, downScaleFrameMat, new Size (), 1.0 / imageOptimizationHelper.downscaleRatio, 1.0 / imageOptimizationHelper.downscaleRatio, Imgproc.INTER_LINEAR);
+            }
+
+            Imgproc.cvtColor (downScaleFrameMat, grayMat, Imgproc.COLOR_BGRA2GRAY);
+            Imgproc.equalizeHist (grayMat, grayMat);
+
+            if (enableDetection && !isDetecting ) {
+
+                isDetecting = true;
+
+                grayMat.copyTo (grayMat4Thread);
+
+                System.Threading.Tasks.Task.Run(() => {
+
+                    isThreadRunning = true;
+                    DetectObject ();
+                    isThreadRunning = false;
+                    OnDetectionDone ();
+                });
+            }
+
+            OpenCVForUnityUtils.SetImage (faceLandmarkDetector, grayMat);
+
+            if (!displayCameraImage) {
+                // fill all black.
+                Imgproc.rectangle (downScaleFrameMat, new Point (0, 0), new Point (downScaleFrameMat.width (), downScaleFrameMat.height ()), new Scalar (0, 0, 0, 0), -1);
+            }
+
+
+            Rect[] rects;
+            if (!useSeparateDetection) {
+                if (hasUpdatedDetectionResult) {
+                    hasUpdatedDetectionResult = false;
+
+                    lock (rectangleTracker) {
+                        rectangleTracker.UpdateTrackedObjects (detectionResult.toList ());
+                    }
+                }
+
+                lock (rectangleTracker) {
+                    rectangleTracker.GetObjects (resultObjects, true);
+                }
+                rects = resultObjects.ToArray ();
+
+                if (displayDetectedFaceRect) {
+                    for (int i = 0; i < rects.Length; i++) {
+                        //UnityEngine.WSA.Application.InvokeOnAppThread (() => {
+                        //    Debug.Log ("detected face[" + i + "] " + rects [i]);
+                        //}, true);
+
+                        Imgproc.rectangle (downScaleFrameMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (0, 0, 255, 255), 3);
+                    }
+                }
+
+                // Adjust to Dilb's result.
+                foreach (OpenCVForUnity.Rect r in resultObjects) {
+                    r.y += (int)(r.height * 0.1f);
+                }
+
+                foreach (var rect in resultObjects) {
+
+                    //detect landmark points
+                    List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
+
+                    //draw landmark points
+                    OpenCVForUnityUtils.DrawFaceLandmark (downScaleFrameMat, points, new Scalar (0, 255, 0, 255), 2);
+
+                    if (displayDetectedFaceRect) {
+                        //draw face rect
+                        OpenCVForUnityUtils.DrawFaceRect (downScaleFrameMat, new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height), new Scalar (0, 0, 255, 255), 2);
+                    }
+                }
+
+            }else {
+
+                if (hasUpdatedDetectionResult) {
+                    hasUpdatedDetectionResult = false;
+
+                    //UnityEngine.WSA.Application.InvokeOnAppThread (() => {
+                    //    Debug.Log("process: get rectsWhereRegions were got from detectionResult");
+                    //}, true);
+
+                    lock (rectangleTracker) {
+                        rectsWhereRegions = detectionResult.toArray ();
+                    }
+
+                    if (displayDetectedFaceRect) {
+                        rects = rectsWhereRegions;
+                        for (int i = 0; i < rects.Length; i++) {
+                            Imgproc.rectangle (downScaleFrameMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (255, 0, 0, 255), 1);
+                        }
+                    }
+
+                } else {
+                    //UnityEngine.WSA.Application.InvokeOnAppThread (() => {
+                    //    Debug.Log("process: get rectsWhereRegions from previous positions");
+                    //}, true);
+
+                    lock (rectangleTracker) {
+                        rectsWhereRegions = rectangleTracker.CreateCorrectionBySpeedOfRects ();
+                    }
+
+                    if (displayDetectedFaceRect) {
+                        rects = rectsWhereRegions;
+                        for (int i = 0; i < rects.Length; i++) {
+                            Imgproc.rectangle (downScaleFrameMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (0, 255, 0, 255), 1);
+                        }
+                    }
+                }
+
+                detectedObjectsInRegions.Clear ();
+                if (rectsWhereRegions.Length > 0) {
+                    int len = rectsWhereRegions.Length;
+                    for (int i = 0; i < len; i++) {
+                        DetectInRegion (grayMat, rectsWhereRegions [i], detectedObjectsInRegions);
+                    }
+                }                
+
+                lock (rectangleTracker) {
+                    rectangleTracker.UpdateTrackedObjects (detectedObjectsInRegions);
+                    rectangleTracker.GetObjects (resultObjects, true);
+                }
+
+                if (displayDetectedFaceRect) {
+                    rects = resultObjects.ToArray ();
+                    for (int i = 0; i < rects.Length; i++) {
+                        //UnityEngine.WSA.Application.InvokeOnAppThread (() => {
+                        //    Debug.Log ("detected face[" + i + "] " + rects [i]);
+                        //}, true);
+
+                        Imgproc.rectangle (downScaleFrameMat, new Point (rects [i].x, rects [i].y), new Point (rects [i].x + rects [i].width, rects [i].y + rects [i].height), new Scalar (0, 0, 255, 255), 3);
+                    }
+                }
+
+                // Adjust to Dilb's result.
+                foreach (OpenCVForUnity.Rect r in resultObjects) {
+                    r.y += (int)(r.height * 0.1f);
+                }
+
+                foreach (var rect in resultObjects) {
+
+                    //detect landmark points
+                    List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
+
+                    //draw landmark points
+                    OpenCVForUnityUtils.DrawFaceLandmark (downScaleFrameMat, points, new Scalar (0, 255, 0, 255), 2);
+
+                    if (displayDetectedFaceRect) {
+                        //draw face rect
+                        OpenCVForUnityUtils.DrawFaceRect (downScaleFrameMat, new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height), new Scalar (0, 0, 255, 255), 2);
+                    }
+                }
+            }
+
+
+            UnityEngine.WSA.Application.InvokeOnAppThread(() => {
+
+                if (!webCamTextureToMatHelper.IsPlaying ()) return;
+
+                OpenCVForUnity.Utils.fastMatToTexture2D(downScaleFrameMat, texture);
+                bgraMat.Dispose ();
+                if (imageOptimizationHelper.downscaleRatio != 1) {
+                    downScaleFrameMat.Dispose();
+                }
+
+                Matrix4x4 worldToCameraMatrix = cameraToWorldMatrix.inverse;
+
+                quad_renderer.sharedMaterial.SetMatrix ("_WorldToCameraMatrix", worldToCameraMatrix);
+
+                // Position the canvas object slightly in front
+                // of the real world web camera.
+                Vector3 position = cameraToWorldMatrix.GetColumn (3) - cameraToWorldMatrix.GetColumn (2);
+
+                // Rotate the canvas object so that it faces the user.
+                Quaternion rotation = Quaternion.LookRotation (-cameraToWorldMatrix.GetColumn (2), cameraToWorldMatrix.GetColumn (1));
+
+                gameObject.transform.position = position;
+                gameObject.transform.rotation = rotation;
+
+            }, false);
+        }
+
+        #else
+
         // Update is called once per frame
         void Update ()
         {
@@ -239,7 +469,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             if (webCamTextureToMatHelper.IsPlaying () && webCamTextureToMatHelper.DidUpdateThisFrame ()) {
 
-                Mat rgbaMat = webCamTextureToMatHelper.GetDownScaleMat(webCamTextureToMatHelper.GetMat ());
+                Mat rgbaMat = imageOptimizationHelper.GetDownScaleMat( webCamTextureToMatHelper.GetMat ());
 
                 Imgproc.cvtColor (rgbaMat, grayMat, Imgproc.COLOR_RGBA2GRAY);
                 Imgproc.equalizeHist (grayMat, grayMat);
@@ -261,16 +491,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                 Rect[] rects;
                 if (!useSeparateDetection) {
-                    if (hadUpdatedDetectionResult) 
+                    if (hasUpdatedDetectionResult) 
                     {
-                        hadUpdatedDetectionResult = false;
+                        hasUpdatedDetectionResult = false;
 
                         rectangleTracker.UpdateTrackedObjects (detectionResult.toList());
                     }
 
                     rectangleTracker.GetObjects (resultObjects, true);
-//                    rects = resultObjects.ToArray ();
-
                     rects = rectangleTracker.CreateCorrectionBySpeedOfRects ();
 
                     if (displayDetectedFaceRect) {
@@ -301,8 +529,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                 } else {
 
-                    if (hadUpdatedDetectionResult) {
-                        hadUpdatedDetectionResult = false;
+                    if (hasUpdatedDetectionResult) {
+                        hasUpdatedDetectionResult = false;
 
                         //Debug.Log("process: get rectsWhereRegions were got from detectionResult");
                         rectsWhereRegions = detectionResult.toArray ();
@@ -372,8 +600,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 Matrix4x4 cameraToWorldMatrix = Camera.main.cameraToWorldMatrix;
                 Matrix4x4 worldToCameraMatrix = cameraToWorldMatrix.inverse;
 
-                texture.wrapMode = TextureWrapMode.Clamp;
-
                 quad_renderer.sharedMaterial.SetMatrix ("_WorldToCameraMatrix", worldToCameraMatrix);
 
                 // Position the canvas object slightly in front
@@ -387,6 +613,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 gameObject.transform.rotation = rotation;
             }
         }
+        #endif
 
         private void StartThread(Action action)
         {
@@ -438,7 +665,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
         private void OnDetectionDone()
         {
-            hadUpdatedDetectionResult = true;
+            hasUpdatedDetectionResult = true;
 
             isDetecting = false;
         }
@@ -480,6 +707,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         void OnDestroy ()
         {
+            imageOptimizationHelper.Dispose ();
+            #if NETFX_CORE
+            webCamTextureToMatHelper.frameMatAcquired -= OnFrameMatAcquired;
+            #endif
             webCamTextureToMatHelper.Dispose ();
 
             if (faceLandmarkDetector != null)
@@ -544,8 +775,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 useSeparateDetection = false;
             }
 
-            if (rectangleTracker != null)
-                rectangleTracker.Reset ();
+            lock (rectangleTracker) {
+                if (rectangleTracker != null)
+                    rectangleTracker.Reset ();
+            }
         }
 
         /// <summary>
