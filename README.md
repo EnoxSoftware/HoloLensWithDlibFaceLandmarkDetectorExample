@@ -31,6 +31,7 @@ By using the "HoloLensCameraStream" asset, video capture can now be executed fas
     * Setup the HoloToolKit. (Mixed Reality ToolKit > Configure > Apply Mixed Reality Project Setting)
 1. Import the OpenCVForUnity.
     * Setup the OpenCVForUnity. (Tools > OpenCV for Unity > Set Plugn Inport Settings)
+    * Move the "OpenCVForUnity/haarcascade_frontalface_alt.xml" and "OpenCVForUnity/lbpcascade_frontalface.xml" to the "Assets/StreamingAssets/" folder.
 1. Import the DlibFaceLandmarkDetector.
     * Setup the OpenCVForUnity. (Tools > Dlib FaceLandmarkDetector > Set Plugn Inport Settings)
     * Move the "DlibFaceLandmarkDetector/StreamingAssets/sp_human_face_68.dat" and "DlibFaceLandmarkDetector/StreamingAssets/sp_human_face_68_for_mobile.dat" to the "Assets/StreamingAssets/" folder. 
