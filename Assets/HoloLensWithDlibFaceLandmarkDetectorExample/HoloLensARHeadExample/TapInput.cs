@@ -1,10 +1,15 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using UnityEngine.VR.WSA.Input;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace HoloLensWithDlibFaceLandmarkDetectorExample
+#if UNITY_2017_2_OR_NEWER
+using UnityEngine.XR.WSA.Input;
+#else
+using UnityEngine.VR.WSA.Input;
+#endif
+
+namespace HoloLensWithOpenCVForUnityExample
 {
     public class TapInput : MonoBehaviour
     {
@@ -15,7 +20,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         void Awake ()
         {
             recognizer = new GestureRecognizer ();
+            #if UNITY_2017_2_OR_NEWER
+            recognizer.Tapped += (args) => {
+            #else
             recognizer.TappedEvent += (source, tapCount, ray) => {
+            #endif
                 OnTappedEvent.Invoke ();
             };
             recognizer.StartCapturingGestures ();

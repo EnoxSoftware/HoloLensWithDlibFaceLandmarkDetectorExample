@@ -1,9 +1,18 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
+
+#if UNITY_2017_2_OR_NEWER
+using UnityEngine.XR.WSA.WebCam;
+using UnityEngine.XR.WSA.Input;
+using WSAWebCamCameraParameters = UnityEngine.XR.WSA.WebCam.CameraParameters;
+#else
 using UnityEngine.VR.WSA.WebCam;
 using UnityEngine.VR.WSA.Input;
-using UnityEngine.EventSystems;
+using WSAWebCamCameraParameters = UnityEngine.VR.WSA.WebCam.CameraParameters;
+#endif
+
 
 #if UNITY_5_3 || UNITY_5_3_OR_NEWER
 using UnityEngine.SceneManagement;
@@ -24,7 +33,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         GameObject m_Canvas = null;
         Renderer m_CanvasRenderer = null;
         PhotoCapture m_PhotoCaptureObj;
-        CameraParameters m_CameraParameters;
+        WSAWebCamCameraParameters m_CameraParameters;
         bool m_CapturingPhoto = false;
         Texture2D m_Texture = null;
 
@@ -56,7 +65,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         {
             m_GestureRecognizer = new GestureRecognizer ();
             m_GestureRecognizer.SetRecognizableGestures (GestureSettings.Tap);
+            #if UNITY_2017_2_OR_NEWER
+            m_GestureRecognizer.Tapped += OnTappedEvent;
+            #else
             m_GestureRecognizer.TappedEvent += OnTappedEvent;
+            #endif
             m_GestureRecognizer.StartCapturingGestures ();
 
             m_CapturingPhoto = false;
@@ -72,7 +85,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 Debug.Log ("resolution width " + item.width + " height " + item.height);
             }
 
-            m_CameraParameters = new CameraParameters (WebCamMode.PhotoMode);
+            m_CameraParameters = new WSAWebCamCameraParameters (WebCamMode.PhotoMode);
             m_CameraParameters.cameraResolutionWidth = selectedResolution.width;
             m_CameraParameters.cameraResolutionHeight = selectedResolution.height;
             m_CameraParameters.hologramOpacity = 0.0f;
@@ -101,7 +114,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log ("Air Tap to take a picture.");
         }
 
+        #if UNITY_2017_2_OR_NEWER
+        void OnTappedEvent (TappedEventArgs args)
+        #else
         void OnTappedEvent (InteractionSourceKind source, int tapCount, Ray headRay)
+        #endif
         {
             if (EventSystem.current.IsPointerOverGameObject ())
                 return;
@@ -204,7 +221,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             if (m_GestureRecognizer != null && m_GestureRecognizer.IsCapturingGestures ()) {
                 m_GestureRecognizer.StopCapturingGestures ();
+                #if UNITY_2017_2_OR_NEWER
+                m_GestureRecognizer.Tapped -= OnTappedEvent;
+                #else
                 m_GestureRecognizer.TappedEvent -= OnTappedEvent;
+                #endif
                 m_GestureRecognizer.Dispose ();
             }
 
