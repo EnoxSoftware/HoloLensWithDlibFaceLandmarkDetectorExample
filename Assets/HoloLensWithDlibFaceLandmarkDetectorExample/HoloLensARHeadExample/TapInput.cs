@@ -9,7 +9,7 @@ using UnityEngine.XR.WSA.Input;
 using UnityEngine.VR.WSA.Input;
 #endif
 
-namespace HoloLensWithOpenCVForUnityExample
+namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     public class TapInput : MonoBehaviour
     {

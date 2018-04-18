@@ -134,7 +134,51 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// <summary>
         /// The AR camera.
         /// </summary>
-        public Camera arCamera;
+        public Camera arCamera;        
+
+        [Space(10)]
+
+        /// <summary>
+        /// Determines if enable optical flow filter.
+        /// </summary>
+        public bool enableOpticalFlowFilter;
+
+        /// <summary>
+        /// The enable optical flow filter toggle.
+        /// </summary>
+        public Toggle enableOpticalFlowFilterToggle;
+
+        [Space(10)]
+
+        /// <summary>
+        /// Determines if enable low pass filter.
+        /// </summary>
+        public bool enableLowPassFilter;
+
+        /// <summary>
+        /// The enable low pass filter toggle.
+        /// </summary>
+        public Toggle enableLowPassFilterToggle;
+
+        /// <summary>
+        /// The position low pass. (Value in meters)
+        /// </summary>
+        public float positionLowPass = 0.025f;
+
+        /// <summary>
+        /// The rotation low pass. (Value in degrees)
+        /// </summary>
+        public float rotationLowPass = 3f;
+
+        /// <summary>
+        /// The old pose data.
+        /// </summary>
+        PoseData oldPoseData;
+
+        /// <summary>
+        /// The optical flow points filter.
+        /// </summary>
+        OFPointsFilter opticalFlowFilter;
 
         /// <summary>
         /// The mouth particle system.
@@ -147,12 +191,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         Mat camMatrix;
 
         /// <summary>
-        /// The matrix that inverts the Y axis.
+        /// The matrix that inverts the Y-axis.
         /// </summary>
         Matrix4x4 invertYM;
 
         /// <summary>
-        /// The matrix that inverts the Z axis.
+        /// The matrix that inverts the Z-axis.
         /// </summary>
         Matrix4x4 invertZM;
 
@@ -286,17 +330,19 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             displayAxesToggle.isOn = displayAxes;
             displayHeadToggle.isOn = displayHead;
             displayEffectsToggle.isOn = displayEffects;
+            enableOpticalFlowFilterToggle.isOn = enableOpticalFlowFilter;
+            enableLowPassFilterToggle.isOn = enableLowPassFilter;
 
             imageOptimizationHelper = gameObject.GetComponent<ImageOptimizationHelper> ();
             webCamTextureToMatHelper = gameObject.GetComponent<HololensCameraStreamToMatHelper> ();
-            #if NETFX_CORE
+            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
             webCamTextureToMatHelper.frameMatAcquired += OnFrameMatAcquired;
             #endif
             webCamTextureToMatHelper.Initialize ();
 
             rectangleTracker = new RectangleTracker ();
-//            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
-            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68_for_mobile.dat"));
+            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
+//            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68_for_mobile.dat"));
 
             // The coordinates of the detection object on the real world space connected with the pixel coordinates.(mm)
             objectPoints = new MatOfPoint3f (
@@ -311,6 +357,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             imagePoints = new MatOfPoint2f ();
             rotMat = new Mat (3, 3, CvType.CV_64FC1);
+
+            opticalFlowFilter = new OFPointsFilter ((int)faceLandmarkDetector.GetShapePredictorNumParts());
+            opticalFlowFilter.diffDlib /= imageOptimizationHelper.downscaleRatio;
         }
 
         /// <summary>
@@ -327,7 +376,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             float width = webCamTextureMat.width();
             float height = webCamTextureMat.height();
 
-            #if NETFX_CORE
+            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
             // HololensCameraStream always returns image data in BGRA format.
             texture = new Texture2D ((int)width, (int)height, TextureFormat.BGRA32, false);
             #else
@@ -463,6 +512,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 tvec.Dispose ();
                 tvec = null;
             }
+
+            if (opticalFlowFilter != null)
+                opticalFlowFilter.Dispose ();
         }
 
         /// <summary>
@@ -473,7 +525,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log ("OnWebCamTextureToMatHelperErrorOccurred " + errorCode);
         }
 
-        #if NETFX_CORE
+        #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
         public void OnFrameMatAcquired (Mat bgraMat, Matrix4x4 projectionMatrix, Matrix4x4 cameraToWorldMatrix)
         {
             Mat downScaleFrameMat = imageOptimizationHelper.GetDownScaleMat(bgraMat);
@@ -530,6 +582,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     //detect landmark points
                     points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
+                    if (enableOpticalFlowFilter) {
+                        opticalFlowFilter.Process (bgraMat, points, points, false);
+                    }
+
                     if (displayCameraPreview && bgraMat4preview != null) {
                         //draw landmark points
                         OpenCVForUnityUtils.DrawFaceLandmark (bgraMat4preview, points, new Scalar (0, 255, 0, 255), 2);
@@ -582,6 +638,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     //detect landmark points
                     points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
+                    if (enableOpticalFlowFilter) {
+                        opticalFlowFilter.Process (bgraMat, points, points, false);
+                    }
+
                     if (displayCameraPreview && bgraMat4preview != null) {
                         //draw landmark points
                         OpenCVForUnityUtils.DrawFaceLandmark (bgraMat4preview, points, new Scalar (0, 255, 0, 255), 2);
@@ -599,7 +659,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 }
 
                 if (points != null){
-                    UpdateARHeadTransform (points);
+                    UpdateARHeadTransform (points, cameraToWorldMatrix);
                 }
 
                 bgraMat.Dispose ();
@@ -661,7 +721,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         //detect landmark points
                         List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
-                        UpdateARHeadTransform (points);
+                        if (enableOpticalFlowFilter) {
+                            opticalFlowFilter.Process (rgbaMat, points, points, false);
+                        }
+
+                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix);
 
                         if (displayCameraPreview) {
                             //draw landmark points
@@ -702,7 +766,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         //detect landmark points
                         List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
-                        UpdateARHeadTransform (points);
+                        if (enableOpticalFlowFilter) {
+                            opticalFlowFilter.Process (rgbaMat, points, points, false);
+                        }
+
+                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix);
 
                         if (displayCameraPreview) {
                             //draw landmark points
@@ -718,7 +786,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
         #endif
 
-        private void UpdateARHeadTransform(List<Vector2> points)
+        private void UpdateARHeadTransform(List<Vector2> points, Matrix4x4 cameraToWorldMatrix)
         {
             // The coordinates in pixels of the object detected on the image projected onto the plane.
             imagePoints.fromArray (
@@ -748,15 +816,22 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 
             if (applyEstimationPose && !double.IsNaN(tvec_z)) {
 
-                if (Mathf.Abs ((float)(points [43].y - points [46].y)) > Mathf.Abs ((float)(points [42].x - points [45].x)) / 6.0) {
+                if (Mathf.Abs ((float)(points [43].y - points [46].y)) > Mathf.Abs ((float)(points [42].x - points [45].x)) / 5.0) {
                     if (displayEffects)
                         rightEye.SetActive (true);
+                } else {
+                    if (displayEffects)
+                        rightEye.SetActive (false);
                 }
 
-                if (Mathf.Abs ((float)(points [38].y - points [41].y)) > Mathf.Abs ((float)(points [39].x - points [36].x)) / 6.0) {
+                if (Mathf.Abs ((float)(points [38].y - points [41].y)) > Mathf.Abs ((float)(points [39].x - points [36].x)) / 5.0) {
                     if (displayEffects)
                         leftEye.SetActive (true);
+                } else {
+                    if (displayEffects)
+                        leftEye.SetActive (false);
                 }
+
                 if (displayHead)
                     head.SetActive (true);
                 if (displayAxes)
@@ -787,22 +862,34 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         }
                     }
                 }
+                    
+                // Convert to unity pose data.
+                double[] rvecArr = new double[3];
+                rvec.get (0, 0, rvecArr);
+                double[] tvecArr = new double[3];
+                tvec.get (0, 0, tvecArr);
+                tvecArr [0] = tvecArr [0] / 1000.0;
+                tvecArr[1] = tvecArr[1] / 1000.0;
+                tvecArr[2] = tvecArr[2] / 1000.0 / imageOptimizationHelper.downscaleRatio;
+                PoseData poseData = ARUtils.ConvertRvecTvecToPoseData (rvecArr, tvecArr);
 
-                Calib3d.Rodrigues (rvec, rotMat);
+                // Changes in pos/rot below these thresholds are ignored.
+                if (enableLowPassFilter) {
+                    ARUtils.LowpassPoseData (ref oldPoseData, ref poseData, positionLowPass, rotationLowPass);
+                }
+                oldPoseData = poseData;
 
-                transformationM.SetRow (0, new Vector4 ((float)rotMat.get (0, 0) [0], (float)rotMat.get (0, 1) [0], (float)rotMat.get (0, 2) [0], (float)(tvec.get (0, 0) [0] / 1000.0)));
-                transformationM.SetRow (1, new Vector4 ((float)rotMat.get (1, 0) [0], (float)rotMat.get (1, 1) [0], (float)rotMat.get (1, 2) [0], (float)(tvec.get (1, 0) [0] / 1000.0)));
-                transformationM.SetRow (2, new Vector4 ((float)rotMat.get (2, 0) [0], (float)rotMat.get (2, 1) [0], (float)rotMat.get (2, 2) [0], (float)(tvec.get (2, 0) [0] / 1000.0 / imageOptimizationHelper.downscaleRatio)));
-                transformationM.SetRow (3, new Vector4 (0, 0, 0, 1));
+                // Create transform matrix.
+                transformationM = Matrix4x4.TRS (poseData.pos, poseData.rot, Vector3.one);
 
                 // right-handed coordinates system (OpenCV) to left-handed one (Unity)
                 ARM = invertYM * transformationM;
 
-                // Apply Z axis inverted matrix.
+                // Apply Z-axis inverted matrix.
                 ARM = ARM * invertZM;
 
-                // Apply camera transform matrix.
-                ARM = arCamera.transform.localToWorldMatrix * ARM;
+                // Apply the cameraToWorld matrix with the Z-axis inverted.
+                ARM = cameraToWorldMatrix * invertZM * ARM;
 
                 ARUtils.SetTransformFromMatrix (arGameObject.transform, ref ARM);
             }
@@ -901,7 +988,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         void OnDestroy ()
         {
             imageOptimizationHelper.Dispose ();
-            #if NETFX_CORE
+            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
             webCamTextureToMatHelper.frameMatAcquired -= OnFrameMatAcquired;
             #endif
             webCamTextureToMatHelper.Dispose ();
@@ -957,7 +1044,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnChangeCameraButtonClick ()
         {
-            webCamTextureToMatHelper.Initialize (null, webCamTextureToMatHelper.requestedWidth, webCamTextureToMatHelper.requestedHeight, !webCamTextureToMatHelper.requestedIsFrontFacing);
+            webCamTextureToMatHelper.requestedIsFrontFacing = !webCamTextureToMatHelper.IsFrontFacing ();
         }
 
         /// <summary>
@@ -1028,6 +1115,32 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 rightEye.SetActive (false);
                 leftEye.SetActive (false);
                 mouth.SetActive (false);
+            }
+        }
+
+        /// <summary>
+        /// Raises the enable optical flow filter toggle value changed event.
+        /// </summary>
+        public void OnEnableOpticalFlowFilterToggleValueChanged ()
+        {
+            if (enableOpticalFlowFilterToggle.isOn) {
+                enableOpticalFlowFilter = true;
+            } else {
+                enableOpticalFlowFilter = false;
+            }
+        }
+
+        /// <summary>
+        /// Raises the enable low pass filter toggle value changed event.
+        /// </summary>
+        public void OnEnableLowPassFilterToggleValueChanged ()
+        {
+            if (enableLowPassFilterToggle.isOn) {
+                enableLowPassFilter = true;
+                if (opticalFlowFilter != null)
+                    opticalFlowFilter.Reset ();
+            } else {
+                enableLowPassFilter = false;
             }
         }
 

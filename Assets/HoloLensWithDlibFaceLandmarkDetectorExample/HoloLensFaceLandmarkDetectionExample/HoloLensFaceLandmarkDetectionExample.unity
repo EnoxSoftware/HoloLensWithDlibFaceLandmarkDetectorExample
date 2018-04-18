@@ -1557,15 +1557,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0195895dd83eb204da131e4a7c4bcfe3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  requestedDeviceName: 
-  requestedWidth: 640
-  requestedHeight: 480
-  requestedIsFrontFacing: 0
-  requestedFPS: 30
-  requestedRotate90Degree: 0
-  flipVertical: 0
-  flipHorizontal: 0
-  timeoutFrameCount: 300
+  _requestedDeviceName: 
+  _requestedWidth: 896
+  _requestedHeight: 504
+  _requestedIsFrontFacing: 0
+  _requestedFPS: 30
+  _rotate90Degree: 0
+  _flipVertical: 0
+  _flipHorizontal: 0
+  _timeoutFrameCount: 300
   onInitialized:
     m_PersistentCalls:
       m_Calls:
@@ -1710,8 +1710,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 35addc13ac3cde54eb5408dc180d7600, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  downscaleRatio: 2
-  frameSkippingRatio: 2
+  _downscaleRatio: 2
+  _frameSkippingRatio: 2
 --- !u!20 &1076969803 stripped
 Camera:
   m_PrefabParentObject: {fileID: 20000013304850028, guid: d379ed0a5618c9f479f58bd83a2d0ad3,

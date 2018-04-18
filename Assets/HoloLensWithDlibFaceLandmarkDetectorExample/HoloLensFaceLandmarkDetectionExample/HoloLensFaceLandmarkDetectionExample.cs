@@ -148,14 +148,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             imageOptimizationHelper = gameObject.GetComponent<ImageOptimizationHelper> ();
             webCamTextureToMatHelper = gameObject.GetComponent<HololensCameraStreamToMatHelper> ();
-            #if NETFX_CORE
+            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
             webCamTextureToMatHelper.frameMatAcquired += OnFrameMatAcquired;
             #endif
             webCamTextureToMatHelper.Initialize ();
 
             rectangleTracker = new RectangleTracker ();
-//            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
-            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68_for_mobile.dat"));
+            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
+//            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68_for_mobile.dat"));
         }
 
         /// <summary>
@@ -167,7 +167,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             Mat webCamTextureMat = imageOptimizationHelper.GetDownScaleMat( webCamTextureToMatHelper.GetMat ());
 
-            #if NETFX_CORE
+            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
             // HololensCameraStream always returns image data in BGRA format.
             texture = new Texture2D (webCamTextureMat.cols (), webCamTextureMat.rows (), TextureFormat.BGRA32, false);
             #else
@@ -183,7 +183,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             quad_renderer.sharedMaterial.SetVector ("_VignetteOffset", new Vector4(0, 0));
 
             Matrix4x4 projectionMatrix;
-            #if NETFX_CORE
+            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
             projectionMatrix = webCamTextureToMatHelper.GetProjectionMatrix ();
             quad_renderer.sharedMaterial.SetMatrix ("_CameraProjectionMatrix", projectionMatrix);
             #else
@@ -268,7 +268,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log ("OnWebCamTextureToMatHelperErrorOccurred " + errorCode);
         }
 
-        #if NETFX_CORE
+        #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
         public void OnFrameMatAcquired (Mat bgraMat, Matrix4x4 projectionMatrix, Matrix4x4 cameraToWorldMatrix)
         {
             Mat downScaleFrameMat = bgraMat;
@@ -708,7 +708,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         void OnDestroy ()
         {
             imageOptimizationHelper.Dispose ();
-            #if NETFX_CORE
+            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
             webCamTextureToMatHelper.frameMatAcquired -= OnFrameMatAcquired;
             #endif
             webCamTextureToMatHelper.Dispose ();
@@ -761,7 +761,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnChangeCameraButtonClick ()
         {
-            webCamTextureToMatHelper.Initialize (null, webCamTextureToMatHelper.requestedWidth, webCamTextureToMatHelper.requestedHeight, !webCamTextureToMatHelper.requestedIsFrontFacing);
+            webCamTextureToMatHelper.requestedIsFrontFacing = !webCamTextureToMatHelper.IsFrontFacing ();
         }
 
         /// <summary>
