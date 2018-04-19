@@ -2,8 +2,8 @@
 
 
 ## What's new
-Performance of ArHead example improved.
-By using the "HoloLensCameraStream" asset, video capture can now be executed faster.
+* Performance of ArHead example improved.
+* By using the "HoloLensCameraStream" asset, video capture can now be executed faster.
 
 
 ## Note
@@ -12,6 +12,11 @@ By using the "HoloLensCameraStream" asset, video capture can now be executed fas
 
 ## Demo Video (old version)
 [![](http://img.youtube.com/vi/egMZB_3DGVc/0.jpg)](https://youtu.be/egMZB_3DGVc)
+
+
+## Demo Hololens App
+* [HoloLensWithDlibFaceLandmarkDetectorExample.zip](https://github.com/EnoxSoftware/HoloLensWithDlibFaceLandmarkDetectorExample/releases)
+* Use the Windows Device Portal to install apps on HoloLens. [https://docs.microsoft.com/en-us/hololens/hololens-install-apps](https://docs.microsoft.com/en-us/hololens/hololens-install-apps)
 
 
 ## Environment
