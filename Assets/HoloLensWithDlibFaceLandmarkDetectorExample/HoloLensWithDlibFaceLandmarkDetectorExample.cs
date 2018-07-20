@@ -7,11 +7,12 @@ using UnityEngine.SceneManagement;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
-    public class HoloLensWithDlibFaceLandmarkDetectorExample : MonoBehaviour
+    public class HoloLensWithDlibFaceLandmarkDetectorExample : ExampleSceneBase
     {
         // Use this for initialization
-        void Start ()
+        protected override void Start ()
         {
+            base.Start ();
             
         }
         
@@ -23,47 +24,22 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
         public void OnShowLicenseButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("ShowLicense");
-            #else
-            Application.LoadLevel ("ShowLicense");
-            #endif
+            LoadScene ("ShowLicense");
         }
 
         public void OnHoloLensPhotoCaptureExampleButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("HoloLensPhotoCaptureExample");
-            #else
-            Application.LoadLevel ("HoloLensPhotoCaptureExample");
-            #endif
-        }
-
-        public void OnHoloLensWebCamTextureExampleButtonClick ()
-        {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("HoloLensWebCamTextureExample");
-            #else
-            Application.LoadLevel ("HoloLensWebCamTextureExample");
-            #endif
+            LoadScene ("HoloLensPhotoCaptureExample");
         }
         
         public void OnHoloLensFaceLandmarkDetectionExampleButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("HoloLensFaceLandmarkDetectionExample");
-            #else
-            Application.LoadLevel ("HoloLensFaceLandmarkDetectionExample");
-            #endif
+            LoadScene ("HoloLensFaceLandmarkDetectionExample");
         }
 
         public void OnHoloLensARHeadExampleButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("HoloLensARHeadExample");
-            #else
-            Application.LoadLevel ("HoloLensARHeadExample");
-            #endif
+            LoadScene ("HoloLensARHeadExample");
         }
     }
 }

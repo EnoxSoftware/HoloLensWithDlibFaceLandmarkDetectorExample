@@ -20,13 +20,14 @@
 
 
 ## Environment
-* Windows 10 Pro 1709  
-* Windows 10 SDK 10.0.14393.0 to 10.0.16299.0  
-* Visual Studio 2017 (v151.5.0)  
-* Unity 2017.1.3f1  
-* HoloToolkit-Unity-v1.2017.1.2 ([https://github.com/Microsoft/MixedRealityToolkit-Unity/releases](https://github.com/Microsoft/MixedRealityToolkit-Unity/releases))  
-* OpenCV for Unity 2.2.8 ([https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088))  
-* Dlib FaceLandmarkDetector 1.2.0 ([https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314](https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314))  
+* Hololens (RS4)
+* Windows 10 Pro 1803  
+* Windows 10 SDK 10.0.17134 
+* Visual Studio 2017 (v157.4.0)  
+* Unity 2017.4.3f1  
+* HoloToolkit-Unity-2017.4.0.0 ([https://github.com/Microsoft/MixedRealityToolkit-Unity/releases](https://github.com/Microsoft/MixedRealityToolkit-Unity/releases))  
+* OpenCV for Unity 2.2.9 ([https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088))  
+* Dlib FaceLandmarkDetector 1.2.1 ([https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314](https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314))  
 * HoloLensCameraStream ([https://github.com/VulcanTechnologies/HoloLensCameraStream](https://github.com/VulcanTechnologies/HoloLensCameraStream))  
 
 
@@ -45,7 +46,8 @@
     * Copy the "HoloLensCameraStream/HoloLensVideoCaptureExample/Assets/CamStream/" folder to the "Assets/" folder.
 1. Import the HoloLensWithDlibFaceLandmarkDetectorExample.unitypackage.
 1. Add the "Assets/HoloLensWithDlibFaceLandmarkDetectorExample/*.unity" files to the "Scenes In Build" list in the "Build Settings" window.
-1. Add the "WebCam" to "Publishing Settings > Capabilities" checklist in the "Player Settings" window.
+1. Set ".NET" to "Other Settings > Configuration > Scripting Backend" selector in the "Player Settings" window. (HoloLensCameraStream doesn't support IL2CPP backend)
+1. Add "WebCam" to "Publishing Settings > Capabilities" checklist in the "Player Settings" window.
 1. Build and Deploy to HoloLens. (See [https://developer.microsoft.com/en-us/windows/holographic/holograms_100](https://developer.microsoft.com/en-us/windows/holographic/holograms_100))
 
 |Assets|Buld Settings|

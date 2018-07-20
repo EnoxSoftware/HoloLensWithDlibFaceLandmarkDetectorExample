@@ -27,7 +27,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
     /// An example of holographic photo blending using the PhotocCapture class on Hololens. (Air Tap to take a picture)
     /// Referring to https://forum.unity3d.com/threads/holographic-photo-blending-with-photocapture.416023/.
     /// </summary>
-    public class HoloLensPhotoCaptureExample:MonoBehaviour
+    public class HoloLensPhotoCaptureExample : ExampleSceneBase
     {
         GestureRecognizer m_GestureRecognizer;
         GameObject m_Canvas = null;
@@ -52,8 +52,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         FaceLandmarkDetector faceLandmarkDetector;
 
-        void Start ()
+        protected override void Start ()
         {
+            base.Start ();
+
             m_Canvas = GameObject.Find ("PhotoCaptureCanvas");
             m_CanvasRenderer = m_Canvas.GetComponent<Renderer> () as Renderer;
             m_CanvasRenderer.enabled = false;
@@ -193,6 +195,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             // Position the canvas object slightly in front
             // of the real world web camera.
             Vector3 position = cameraToWorldMatrix.GetColumn (3) - cameraToWorldMatrix.GetColumn (2);
+            position *= 1.2f;
 
             // Rotate the canvas object so that it faces the user.
             Quaternion rotation = Quaternion.LookRotation (-cameraToWorldMatrix.GetColumn (2), cameraToWorldMatrix.GetColumn (1));
@@ -241,11 +244,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnBackButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
-            #else
-            Application.LoadLevel ("HoloLensWithDlibFaceLandmarkDetectorExample");
-            #endif
+            LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
         }
     }
 }

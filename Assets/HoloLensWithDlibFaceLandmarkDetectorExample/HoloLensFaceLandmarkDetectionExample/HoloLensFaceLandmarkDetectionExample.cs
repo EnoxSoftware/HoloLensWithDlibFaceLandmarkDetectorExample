@@ -21,7 +21,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
     /// Referring to https://github.com/Itseez/opencv/blob/master/modules/objdetect/src/detection_based_tracker.cpp.
     /// </summary>
     [RequireComponent(typeof(HololensCameraStreamToMatHelper))]
-    public class HoloLensFaceLandmarkDetectionExample : MonoBehaviour
+    public class HoloLensFaceLandmarkDetectionExample : ExampleSceneBase
     {
         /// <summary>
         /// Determines if enables the detection.
@@ -140,8 +140,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         // Use this for initialization
-        void Start ()
+        protected override void Start ()
         {
+            base.Start ();
+
             useSeparateDetectionToggle.isOn = useSeparateDetection;
             displayCameraImageToggle.isOn = displayCameraImage;
             displayDetectedFaceRectToggle.isOn = displayDetectedFaceRect;
@@ -328,7 +330,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     }
                 }
 
-                // Adjust to Dilb's result.
+                // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
                 foreach (OpenCVForUnity.Rect r in resultObjects) {
                     r.y += (int)(r.height * 0.1f);
                 }
@@ -408,7 +410,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     }
                 }
 
-                // Adjust to Dilb's result.
+                // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
                 foreach (OpenCVForUnity.Rect r in resultObjects) {
                     r.y += (int)(r.height * 0.1f);
                 }
@@ -446,6 +448,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 // Position the canvas object slightly in front
                 // of the real world web camera.
                 Vector3 position = cameraToWorldMatrix.GetColumn (3) - cameraToWorldMatrix.GetColumn (2);
+                position *= 1.2f;
 
                 // Rotate the canvas object so that it faces the user.
                 Quaternion rotation = Quaternion.LookRotation (-cameraToWorldMatrix.GetColumn (2), cameraToWorldMatrix.GetColumn (1));
@@ -508,7 +511,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         }
                     }
 
-                    // Adjust to Dilb's result.
+                    // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
                     foreach (OpenCVForUnity.Rect r in resultObjects) {
                         r.y += (int)(r.height * 0.1f);
                     }
@@ -572,7 +575,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         }
                     }
 
-                    // Adjust to Dilb's result.
+                    // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
                     foreach (OpenCVForUnity.Rect r in resultObjects) {
                         r.y += (int)(r.height * 0.1f);
                     }
@@ -605,6 +608,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 // Position the canvas object slightly in front
                 // of the real world web camera.
                 Vector3 position = cameraToWorldMatrix.GetColumn (3) - cameraToWorldMatrix.GetColumn (2);
+                position *= 1.2f;
 
                 // Rotate the canvas object so that it faces the user.
                 Quaternion rotation = Quaternion.LookRotation (-cameraToWorldMatrix.GetColumn (2), cameraToWorldMatrix.GetColumn (1));
@@ -725,11 +729,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnBackButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
-            #else
-            Application.LoadLevel ("HoloLensWithDlibFaceLandmarkDetectorExample");
-            #endif
+            LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
         }
 
         /// <summary>

@@ -21,7 +21,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
     /// An example of AR head projection using OpenCVForUnity and DlibLandmarkDetector on Hololens.
     /// </summary>
     [RequireComponent(typeof(HololensCameraStreamToMatHelper))]
-    public class HoloLensARHeadExample : MonoBehaviour
+    public class HoloLensARHeadExample : ExampleSceneBase
     {
         [SerializeField, HeaderAttribute ("Preview")]
 
@@ -323,8 +323,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         // Use this for initialization
-        void Start ()
+        protected override void Start ()
         {
+            base.Start ();
+
             displayCameraPreviewToggle.isOn = displayCameraPreview;
             useSeparateDetectionToggle.isOn = useSeparateDetection;
             displayAxesToggle.isOn = displayAxes;
@@ -576,7 +578,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                     OpenCVForUnity.Rect rect = rects [0];
 
-                    // Adjust to Dilb's result.
+                    // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
                     rect.y += (int)(rect.height * 0.1f);
 
                     //detect landmark points
@@ -632,7 +634,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                     OpenCVForUnity.Rect rect = resultObjects [0];
 
-                    // Adjust to Dilb's result.
+                    // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
                     rect.y += (int)(rect.height * 0.1f);
 
                     //detect landmark points
@@ -715,7 +717,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                         OpenCVForUnity.Rect rect = rects [0];
 
-                        // Adjust to Dilb's result.
+                        // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
                         rect.y += (int)(rect.height * 0.1f);
 
                         //detect landmark points
@@ -760,7 +762,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                         OpenCVForUnity.Rect rect = resultObjects [0];
 
-                        // Adjust to Dilb's result.
+                        // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
                         rect.y += (int)(rect.height * 0.1f);
 
                         //detect landmark points
@@ -1008,11 +1010,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnBackButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
-            #else
-            Application.LoadLevel ("HoloLensWithDlibFaceLandmarkDetectorExample");
-            #endif
+            LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
         }
 
         /// <summary>

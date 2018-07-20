@@ -7,11 +7,12 @@ using UnityEngine.SceneManagement;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
-    public class ShowLicense : MonoBehaviour
+    public class ShowLicense : ExampleSceneBase
     {
         // Use this for initialization
-        void Start ()
+        protected override void Start ()
         {
+            base.Start ();
             
         }
         
@@ -26,11 +27,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnBackButtonClick ()
         {
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
-            SceneManager.LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
-            #else
-            Application.LoadLevel ("HoloLensWithDlibFaceLandmarkDetectorExample");
-            #endif
+            LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
         }
     }
 }
