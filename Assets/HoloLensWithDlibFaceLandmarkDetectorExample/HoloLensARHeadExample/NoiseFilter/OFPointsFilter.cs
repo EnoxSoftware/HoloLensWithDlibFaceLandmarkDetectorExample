@@ -1,19 +1,23 @@
-﻿using OpenCVForUnity;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using System;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.ImgprocModule;
+using OpenCVForUnity.VideoModule;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     /// <summary>
     /// Optical Flow Points Filter.
-    /// v 1.0.1
+    /// v 1.0.3
     /// </summary>
     public class OFPointsFilter : PointsFilterBase
     {
-        public double diffDlib = 1;
+        public double diffCheckSensitivity = 1;
 
         bool flag = false;
+        double diffDlib = 1;
+        MatOfPoint prevTrackPtsMat;
 
         // Optical Flow
         Mat prevgray, gray;
@@ -27,6 +31,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         public OFPointsFilter (int numberOfElements) : base (numberOfElements)
         {        
             diffDlib = diffDlib * (double)numberOfElements / 68.0;
+            prevTrackPtsMat = new MatOfPoint ();
 
             // Initialize Optical Flow
             InitializeOpticalFlow ();
@@ -64,12 +69,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 }
 
                 for (int i = 0; i < numberOfElements; i++) {
-                    prevTrackPts[i] = new Point (srcPoints [i].x, srcPoints [i].y);
+                    prevTrackPts [i] = new Point (srcPoints [i].x, srcPoints [i].y);
                 }
 
                 flag = true;
             }
-
 
             if (srcPoints != null) {
 
@@ -101,6 +105,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     Video.calcOpticalFlowPyrLK (prevgray, gray, mOP2fPrevTrackPts, mOP2fNextTrackPts, status, err);
                     prevTrackPts = mOP2fPrevTrackPts.toList ();
                     nextTrackPts = mOP2fNextTrackPts.toList ();
+
+                    // clac diffDlib
+                    prevTrackPtsMat.fromList (prevTrackPts);
+                    OpenCVForUnity.CoreModule.Rect rect = Imgproc.boundingRect (prevTrackPtsMat);
+                    double diffDlib = this.diffDlib * rect.area () / 40000.0 * diffCheckSensitivity;
+
                     // if the face is moving so fast, use dlib to detect the face
                     double diff = calDistanceDiff (prevTrackPts, nextTrackPts);
                     if (drawDebugPoints)
@@ -148,21 +158,21 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             // Reset Optical Flow
             for (int i = 0; i < numberOfElements; i++) {
-                prevTrackPts[i].x = 0.0;
-                prevTrackPts[i].y = 0.0;
+                prevTrackPts [i].x = 0.0;
+                prevTrackPts [i].y = 0.0;
             }
             for (int i = 0; i < numberOfElements; i++) {
-                nextTrackPts[i].x = 0.0;
-                nextTrackPts[i].y = 0.0;
+                nextTrackPts [i].x = 0.0;
+                nextTrackPts [i].y = 0.0;
             }
 
             if (prevgray != null) {
                 prevgray.Dispose ();
-                prevgray = new Mat();
+                prevgray = new Mat ();
             }
             if (gray != null) {
                 gray.Dispose ();
-                gray = new Mat();
+                gray = new Mat ();
             }
         }
 
@@ -172,6 +182,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         public override void Dispose ()
         {
             DisposeOpticalFlow ();
+
+            if (prevTrackPtsMat != null)
+                prevTrackPtsMat.Dispose ();
         }
 
         protected virtual void InitializeOpticalFlow ()

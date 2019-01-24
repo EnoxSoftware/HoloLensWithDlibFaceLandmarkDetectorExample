@@ -1,18 +1,19 @@
 ﻿using UnityEngine;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine.UI;
-using OpenCVForUnity.RectangleTrack;
+using System;
 using System.Threading;
-using UnityEngine.EventSystems;
-
-#if UNITY_5_3 || UNITY_5_3_OR_NEWER
-using UnityEngine.SceneManagement;
-#endif
-using OpenCVForUnity;
-using Rect = OpenCVForUnity.Rect;
+using System.Collections.Generic;
+using HoloToolkit.Unity.InputModule;
+using OpenCVForUnity.RectangleTrack;
+using OpenCVForUnity.UnityUtils;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.UnityUtils.Helper;
+using OpenCVForUnity.ObjdetectModule;
+using OpenCVForUnity.Calib3dModule;
+using OpenCVForUnity.ImgprocModule;
 using DlibFaceLandmarkDetector;
+using Rect = OpenCVForUnity.CoreModule.Rect;
+using HoloLensWithOpenCVForUnity.UnityUtils.Helper;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
@@ -57,6 +58,16 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// The use separate detection toggle.
         /// </summary>
         public Toggle useSeparateDetectionToggle;
+
+        /// <summary>
+        /// Determines if use OpenCV FaceDetector for face detection.
+        /// </summary>
+        public bool useOpenCVDetector;
+
+        /// <summary>
+        /// The use OpenCV FaceDetector toggle.
+        /// </summary>
+        public Toggle useOpenCVDetectorToggle;
 
         /// <summary>
         /// The min detection size ratio.
@@ -213,7 +224,22 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// <summary>
         /// The 3d face object points.
         /// </summary>
-        MatOfPoint3f objectPoints;
+        MatOfPoint3f objectPoints68;
+
+        /// <summary>
+        /// The 3d face object points.
+        /// </summary>
+        MatOfPoint3f objectPoints17;
+
+        /// <summary>
+        /// The 3d face object points.
+        /// </summary>
+        MatOfPoint3f objectPoints6;
+
+        /// <summary>
+        /// The 3d face object points.
+        /// </summary>
+        MatOfPoint3f objectPoints5;
 
         /// <summary>
         /// The image points.
@@ -229,11 +255,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// The tvec.
         /// </summary>
         Mat tvec;
-
-        /// <summary>
-        /// The rot mat.
-        /// </summary>
-        Mat rotMat;
 
         /// <summary>
         /// The webcam texture to mat helper.
@@ -263,12 +284,34 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// <summary>
         /// The detection result.
         /// </summary>
-        MatOfRect detectionResult;
+        List<Rect> detectionResult = new List<Rect>();
 
         /// <summary>
         /// The face landmark detector.
         /// </summary>
         FaceLandmarkDetector faceLandmarkDetector;
+
+        /// <summary>
+        /// The dlib shape predictor file name.
+        /// </summary>
+        string dlibShapePredictorFileName = "sp_human_face_68.dat";
+
+        /// <summary>
+        /// The dlib shape predictor file path.
+        /// </summary>
+        string dlibShapePredictorFilePath;
+
+        #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
+        int CVTCOLOR_CODE = Imgproc.COLOR_BGRA2GRAY;
+        Scalar COLOR_RED = new Scalar(0, 0, 255, 255);
+        Scalar COLOR_GREEN = new Scalar(0, 255, 0, 255);
+        Scalar COLOR_BLUE = new Scalar(255, 0, 0, 255);
+        #else
+        int CVTCOLOR_CODE = Imgproc.COLOR_RGBA2GRAY;
+        Scalar COLOR_RED = new Scalar(255, 0, 0, 255);
+        Scalar COLOR_GREEN = new Scalar(0, 255, 0, 255);
+        Scalar COLOR_BLUE = new Scalar(0, 0, 255, 255);
+        #endif
 
 
         // The camera matrix value of Hololens camera 896x504 size.
@@ -288,6 +331,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
         Mat grayMat4Thread;
         CascadeClassifier cascade4Thread;
+        FaceLandmarkDetector faceLandmarkDetector4Thread;
         readonly static Queue<Action> ExecuteOnMainThread = new Queue<Action>();
         System.Object sync = new System.Object ();
 
@@ -302,7 +346,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         RectangleTracker rectangleTracker;
         float coeffTrackingWindowSize = 2.0f;
         float coeffObjectSizeToTrack = 0.85f;
-        Rect[] rectsWhereRegions;
         List<Rect> detectedObjectsInRegions = new List<Rect> ();
         List<Rect> resultObjects = new List<Rect> ();
 
@@ -327,41 +370,85 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         {
             base.Start ();
 
+            imageOptimizationHelper = gameObject.GetComponent<ImageOptimizationHelper> ();
+            webCamTextureToMatHelper = gameObject.GetComponent<HololensCameraStreamToMatHelper> ();
+            #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
+            webCamTextureToMatHelper.frameMatAcquired += OnFrameMatAcquired;
+            #endif
+            webCamTextureToMatHelper.Initialize ();
+
+            rectangleTracker = new RectangleTracker();
+
+            dlibShapePredictorFileName = HoloLensWithDlibFaceLandmarkDetectorExample.dlibShapePredictorFileName;
+            dlibShapePredictorFilePath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath(dlibShapePredictorFileName);
+            if (string.IsNullOrEmpty(dlibShapePredictorFilePath))
+            {
+                Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+            }
+            faceLandmarkDetector = new FaceLandmarkDetector (dlibShapePredictorFilePath);
+
+            dlibShapePredictorFilePath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath("sp_human_face_6.dat");
+            if (string.IsNullOrEmpty(dlibShapePredictorFilePath))
+            {
+                Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+            }
+            faceLandmarkDetector4Thread = new FaceLandmarkDetector(dlibShapePredictorFilePath);
+
+
             displayCameraPreviewToggle.isOn = displayCameraPreview;
             useSeparateDetectionToggle.isOn = useSeparateDetection;
+            useOpenCVDetectorToggle.isOn = useOpenCVDetector;
             displayAxesToggle.isOn = displayAxes;
             displayHeadToggle.isOn = displayHead;
             displayEffectsToggle.isOn = displayEffects;
             enableOpticalFlowFilterToggle.isOn = enableOpticalFlowFilter;
             enableLowPassFilterToggle.isOn = enableLowPassFilter;
 
-            imageOptimizationHelper = gameObject.GetComponent<ImageOptimizationHelper> ();
-            webCamTextureToMatHelper = gameObject.GetComponent<HololensCameraStreamToMatHelper> ();
-            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
-            webCamTextureToMatHelper.frameMatAcquired += OnFrameMatAcquired;
-            #endif
-            webCamTextureToMatHelper.Initialize ();
 
-            rectangleTracker = new RectangleTracker ();
-            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
-//            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68_for_mobile.dat"));
-
-            // The coordinates of the detection object on the real world space connected with the pixel coordinates.(mm)
-            objectPoints = new MatOfPoint3f (
-                new Point3 (-34, 90, 83),//l eye (Interpupillary breadth)
-                new Point3 (34, 90, 83),//r eye (Interpupillary breadth)
-                new Point3 (0.0, 50, 120),//nose (Nose top)
-                new Point3 (-26, 15, 83),//l mouse (Mouth breadth)
-                new Point3 (26, 15, 83),//r mouse (Mouth breadth)
-                new Point3 (-79, 90, 0.0),//l ear (Bitragion breadth)
-                new Point3 (79, 90, 0.0)//r ear (Bitragion breadth)
+            // set 3d face object points.
+            objectPoints68 = new MatOfPoint3f(
+                new Point3(-34, 90, 83),//l eye (Interpupillary breadth)
+                new Point3(34, 90, 83),//r eye (Interpupillary breadth)
+                new Point3(0.0, 50, 117),//nose (Tip)
+                new Point3(0.0, 32, 97),//nose (Subnasale)
+                new Point3(-79, 90, 10),//l ear (Bitragion breadth)
+                new Point3(79, 90, 10)//r ear (Bitragion breadth)
             );
 
+            objectPoints17 = new MatOfPoint3f(
+                new Point3(-34, 90, 83),//l eye (Interpupillary breadth)
+                new Point3(34, 90, 83),//r eye (Interpupillary breadth)
+                new Point3(0.0, 50, 117),//nose (Tip)
+                new Point3(0.0, 32, 97),//nose (Subnasale)
+                new Point3(-79, 90, 10),//l ear (Bitragion breadth)
+                new Point3(79, 90, 10)//r ear (Bitragion breadth)
+            );
+
+            objectPoints6 = new MatOfPoint3f(
+                new Point3(-34, 90, 83),//l eye (Interpupillary breadth)
+                new Point3(34, 90, 83),//r eye (Interpupillary breadth)
+                new Point3(0.0, 50, 117),//nose (Tip)
+                new Point3(0.0, 32, 97)//nose (Subnasale)
+            );
+
+            objectPoints5 = new MatOfPoint3f(
+                new Point3(-23, 90, 83),//l eye (Inner corner of the eye)
+                new Point3(23, 90, 83),//r eye (Inner corner of the eye)
+                new Point3(-50, 90, 80),//l eye (Tail of the eye)
+                new Point3(50, 90, 80),//r eye (Tail of the eye)
+                new Point3(0.0, 32, 97)//nose (Subnasale)
+            );
+
+            // adjust object points to the scale of real world space.
+            AjustPointScale (objectPoints68, 0.001);
+            AjustPointScale(objectPoints17, 0.001);
+            AjustPointScale(objectPoints6, 0.001);
+            AjustPointScale(objectPoints5, 0.001);
+
             imagePoints = new MatOfPoint2f ();
-            rotMat = new Mat (3, 3, CvType.CV_64FC1);
 
             opticalFlowFilter = new OFPointsFilter ((int)faceLandmarkDetector.GetShapePredictorNumParts());
-            opticalFlowFilter.diffDlib /= imageOptimizationHelper.downscaleRatio;
+            opticalFlowFilter.diffCheckSensitivity /= imageOptimizationHelper.downscaleRatio;
         }
 
         /// <summary>
@@ -371,19 +458,19 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         {
             Debug.Log ("OnWebCamTextureToMatHelperInitialized");
 
-            Mat webCamTextureMat = imageOptimizationHelper.GetDownScaleMat(webCamTextureToMatHelper.GetMat ());
-
-            Debug.Log ("Screen.width " + Screen.width + " Screen.height " + Screen.height + " Screen.orientation " + Screen.orientation);
+            Mat webCamTextureMat = webCamTextureToMatHelper.GetMat();
 
             float width = webCamTextureMat.width();
             float height = webCamTextureMat.height();
 
-            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
+            #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
             // HololensCameraStream always returns image data in BGRA format.
             texture = new Texture2D ((int)width, (int)height, TextureFormat.BGRA32, false);
             #else
             texture = new Texture2D ((int)width, (int)height, TextureFormat.RGBA32, false);
             #endif
+
+            Debug.Log("Screen.width " + Screen.width + " Screen.height " + Screen.height + " Screen.orientation " + Screen.orientation);
 
             previewQuad.GetComponent<MeshRenderer>().material.mainTexture = texture;
             previewQuad.transform.localScale = new Vector3 (1, height/width, 1);
@@ -392,8 +479,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             double fx = this.fx;
             double fy = this.fy;
-            double cx = this.cx / imageOptimizationHelper.downscaleRatio;
-            double cy = this.cy / imageOptimizationHelper.downscaleRatio;
+            double cx = this.cx;
+            double cy = this.cy;
 
             camMatrix = new Mat (3, 3, CvType.CV_64FC1);
             camMatrix.put (0, 0, fx);
@@ -455,25 +542,28 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 webCamTextureToMatHelper.flipHorizontal = true;
             }
 
+
             grayMat = new Mat ();
             cascade = new CascadeClassifier ();
-            cascade.load (OpenCVForUnity.Utils.getFilePath ("lbpcascade_frontalface.xml"));
-
+            cascade.load (Utils.getFilePath ("lbpcascade_frontalface.xml"));
+            #if !UNITY_WSA_10_0 || UNITY_EDITOR
             // "empty" method is not working on the UWP platform.
-            //            if (cascade.empty ()) {
-            //                Debug.LogError ("cascade file is not loaded.Please copy from “OpenCVForUnity/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
-            //            }
+            if (cascade.empty())
+            {
+                Debug.LogError("cascade file is not loaded. Please copy from “OpenCVForUnity/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+            }
+            #endif
 
             grayMat4Thread = new Mat ();
             cascade4Thread = new CascadeClassifier ();
-            cascade4Thread.load (OpenCVForUnity.Utils.getFilePath ("haarcascade_frontalface_alt.xml"));
-
+            cascade4Thread.load (Utils.getFilePath ("haarcascade_frontalface_alt.xml"));
+            #if !UNITY_WSA_10_0 || UNITY_EDITOR
             // "empty" method is not working on the UWP platform.
-            //            if (cascade4Thread.empty ()) {
-            //                Debug.LogError ("cascade file is not loaded.Please copy from “OpenCVForUnity/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
-            //            }
-
-            detectionResult = new MatOfRect ();
+            if (cascade4Thread.empty())
+            {
+                Debug.LogError("cascade file is not loaded. Please copy from “OpenCVForUnity/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+            }
+            #endif
         }
 
         /// <summary>
@@ -484,7 +574,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log ("OnWebCamTextureToMatHelperDisposed");
 
             StopThread ();
-            lock (sync) {
+            lock (ExecuteOnMainThread) {
                 ExecuteOnMainThread.Clear ();
             }
 
@@ -527,74 +617,87 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log ("OnWebCamTextureToMatHelperErrorOccurred " + errorCode);
         }
 
-        #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
+        #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
         public void OnFrameMatAcquired (Mat bgraMat, Matrix4x4 projectionMatrix, Matrix4x4 cameraToWorldMatrix)
         {
-            Mat downScaleFrameMat = imageOptimizationHelper.GetDownScaleMat(bgraMat);
-                
-            Imgproc.cvtColor (downScaleFrameMat, grayMat, Imgproc.COLOR_BGRA2GRAY);
-            Imgproc.equalizeHist (grayMat, grayMat);
+            Imgproc.cvtColor(bgraMat, grayMat, CVTCOLOR_CODE);
+
+            Mat downScaleGrayMat = imageOptimizationHelper.GetDownScaleMat(grayMat);
+
+            if (useOpenCVDetector)
+                Imgproc.equalizeHist(downScaleGrayMat, downScaleGrayMat);
 
             if (enableDetection && !isDetecting ) {
 
                 isDetecting = true;
 
-                grayMat.copyTo (grayMat4Thread);
+                downScaleGrayMat.copyTo(grayMat4Thread);
 
                 System.Threading.Tasks.Task.Run(() => {
 
                     isThreadRunning = true;
-                    DetectObject ();
+
+                    if (useOpenCVDetector)
+                    {
+                        DetectObject(grayMat4Thread, out detectionResult, cascade4Thread, true);
+                    }
+                    else
+                    {
+                        DetectObject(grayMat4Thread, out detectionResult, faceLandmarkDetector4Thread);
+                    }
+
                     isThreadRunning = false;
                     OnDetectionDone ();
                 });
             }
 
-            OpenCVForUnityUtils.SetImage (faceLandmarkDetector, grayMat);
-
-            Mat bgraMat4preview = null;
-            if (displayCameraPreview) {
-                bgraMat4preview = new Mat ();
-                downScaleFrameMat.copyTo (bgraMat4preview);
-            }
-
             List<Vector2> points = null;
-            Rect[] rects;
             if (!useSeparateDetection) {
                 if (hasUpdatedDetectionResult) {
                     hasUpdatedDetectionResult = false;
 
                     lock (rectangleTracker) {
-                        rectangleTracker.UpdateTrackedObjects (detectionResult.toList ());
+                        rectangleTracker.UpdateTrackedObjects (detectionResult);
                     }
                 }
 
                 lock (rectangleTracker) {
                     rectangleTracker.GetObjects (resultObjects, true);
                 }
-                rects = resultObjects.ToArray ();
 
-                if(rects.Length > 0){
+                if(resultObjects.Count > 0) {
 
-                    OpenCVForUnity.Rect rect = rects [0];
+                    // set original size image
+                    OpenCVForUnityUtils.SetImage(faceLandmarkDetector, grayMat);
 
-                    // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
-                    rect.y += (int)(rect.height * 0.1f);
+                    Rect rect = resultObjects[0];
 
-                    //detect landmark points
+                    // restore to original size rect
+                    float downscaleRatio = imageOptimizationHelper.downscaleRatio;
+                    rect.x = (int)(rect.x * downscaleRatio);
+                    rect.y = (int)(rect.y * downscaleRatio);
+                    rect.width = (int)(rect.width * downscaleRatio);
+                    rect.height = (int)(rect.height * downscaleRatio);
+
+                    // detect face landmark points
                     points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
                     if (enableOpticalFlowFilter) {
-                        opticalFlowFilter.Process (bgraMat, points, points, false);
+                        opticalFlowFilter.Process (grayMat, points, points, false);
                     }
 
-                    if (displayCameraPreview && bgraMat4preview != null) {
-                        //draw landmark points
-                        OpenCVForUnityUtils.DrawFaceLandmark (bgraMat4preview, points, new Scalar (0, 255, 0, 255), 2);
+                    if (displayCameraPreview) {
+                        // draw landmark points
+                        OpenCVForUnityUtils.DrawFaceLandmark (bgraMat, points, COLOR_GREEN, 2);
+
+                        // draw face rect
+                        OpenCVForUnityUtils.DrawFaceRect(bgraMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_RED, 2);
                     }
                 }
 
             }else {
+
+                Rect[] rectsWhereRegions;
 
                 if (hasUpdatedDetectionResult) {
                     hasUpdatedDetectionResult = false;
@@ -604,72 +707,120 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     //}, true);
 
                     lock (rectangleTracker) {
-                        rectsWhereRegions = detectionResult.toArray ();
+                        rectsWhereRegions = detectionResult.ToArray ();
                     }
 
-                } else {
+                    if (displayCameraPreview)
+                        DrawDownScaleFaceRects(bgraMat, rectsWhereRegions, imageOptimizationHelper.downscaleRatio, COLOR_BLUE, 1);
+                }
+                else {
                     //UnityEngine.WSA.Application.InvokeOnAppThread (() => {
                     //    Debug.Log("process: get rectsWhereRegions from previous positions");
                     //}, true);
 
-                    lock (rectangleTracker) {
-                        rectsWhereRegions = rectangleTracker.CreateCorrectionBySpeedOfRects ();
-                    }                        
+                    if (useOpenCVDetector)
+                    {
+                        lock (rectangleTracker)
+                        {
+                            rectsWhereRegions = rectangleTracker.CreateCorrectionBySpeedOfRects();
+                        }
+                    }
+                    else
+                    {
+                        lock (rectangleTracker)
+                        {
+                            rectsWhereRegions = rectangleTracker.CreateRawRects();
+                        }
+                    }
+
+                    if (displayCameraPreview)
+                        DrawDownScaleFaceRects(bgraMat, rectsWhereRegions, imageOptimizationHelper.downscaleRatio, COLOR_GREEN, 1);
                 }
 
                 detectedObjectsInRegions.Clear ();
-                if (rectsWhereRegions.Length > 0) {
-                    int len = rectsWhereRegions.Length;
-                    for (int i = 0; i < len; i++) {
-                        DetectInRegion (grayMat, rectsWhereRegions [i], detectedObjectsInRegions);
+                int len = rectsWhereRegions.Length;
+                for (int i = 0; i < len; i++)
+                {
+                    if (useOpenCVDetector)
+                    {
+                        DetectInRegion(downScaleGrayMat, rectsWhereRegions[i], detectedObjectsInRegions, cascade, true);
                     }
-                }                
+                    else
+                    {
+                        DetectInRegion(downScaleGrayMat, rectsWhereRegions[i], detectedObjectsInRegions, faceLandmarkDetector);
+                    }
+                }
 
                 lock (rectangleTracker) {
                     rectangleTracker.UpdateTrackedObjects (detectedObjectsInRegions);
-                    rectangleTracker.GetObjects (resultObjects, true);
+                    rectangleTracker.GetObjects (resultObjects, false);
                 }
 
                 if(resultObjects.Count > 0) {
 
-                    OpenCVForUnity.Rect rect = resultObjects [0];
+                    // set original size image
+                    OpenCVForUnityUtils.SetImage(faceLandmarkDetector, grayMat);
 
-                    // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
-                    rect.y += (int)(rect.height * 0.1f);
+                    Rect rect = resultObjects [0];
 
-                    //detect landmark points
+                    // restore to original size rect
+                    float downscaleRatio = imageOptimizationHelper.downscaleRatio;
+                    rect.x = (int)(rect.x * downscaleRatio);
+                    rect.y = (int)(rect.y * downscaleRatio);
+                    rect.width = (int)(rect.width * downscaleRatio);
+                    rect.height = (int)(rect.height * downscaleRatio);
+
+                    // detect face landmark points
                     points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
                     if (enableOpticalFlowFilter) {
-                        opticalFlowFilter.Process (bgraMat, points, points, false);
+                        opticalFlowFilter.Process (grayMat, points, points, false);
                     }
 
-                    if (displayCameraPreview && bgraMat4preview != null) {
-                        //draw landmark points
-                        OpenCVForUnityUtils.DrawFaceLandmark (bgraMat4preview, points, new Scalar (0, 255, 0, 255), 2);
+                    if (displayCameraPreview) {
+                        // draw landmark points
+                        OpenCVForUnityUtils.DrawFaceLandmark (bgraMat, points, COLOR_GREEN, 2);
+
+                        // draw face rect
+                        OpenCVForUnityUtils.DrawFaceRect(bgraMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_RED, 2);
                     }
                 }
-            }
-                
+            }               
 
-            UnityEngine.WSA.Application.InvokeOnAppThread(() => {
+            Enqueue(() => {
 
                 if (!webCamTextureToMatHelper.IsPlaying ()) return;
 
-                if (displayCameraPreview && bgraMat4preview != null) {
-                        OpenCVForUnity.Utils.fastMatToTexture2D(bgraMat4preview, texture);
+                if (displayCameraPreview) {
+                        Utils.fastMatToTexture2D(bgraMat, texture);
                 }
 
-                if (points != null){
-                    UpdateARHeadTransform (points, cameraToWorldMatrix);
+                if (points != null) {
+                    UpdateARHeadTransform (points, cameraToWorldMatrix, cameraToWorldMatrix.inverse, projectionMatrix);
                 }
 
                 bgraMat.Dispose ();
-                if (bgraMat4preview != null){
-                    bgraMat4preview.Dispose();
-                }
 
-            }, false);
+            });
+        }
+
+        private void Update()
+        {
+            lock (ExecuteOnMainThread)
+            {
+                while (ExecuteOnMainThread.Count > 0)
+                {
+                    ExecuteOnMainThread.Dequeue().Invoke();
+                }
+            }
+        }
+
+        private void Enqueue(Action action)
+        {
+            lock (ExecuteOnMainThread)
+            {
+                ExecuteOnMainThread.Enqueue(action);
+            }
         }
 
         #else
@@ -677,7 +828,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         // Update is called once per frame
         void Update ()
         {
-            lock (sync) {
+            lock (ExecuteOnMainThread) {
                 while (ExecuteOnMainThread.Count > 0) {
                     ExecuteOnMainThread.Dequeue ().Invoke ();
                 }
@@ -685,204 +836,362 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             if (webCamTextureToMatHelper.IsPlaying () && webCamTextureToMatHelper.DidUpdateThisFrame ()) {
 
-                Mat rgbaMat = imageOptimizationHelper.GetDownScaleMat(webCamTextureToMatHelper.GetMat ());
+                Mat rgbaMat = webCamTextureToMatHelper.GetMat();
+                Imgproc.cvtColor(rgbaMat, grayMat, CVTCOLOR_CODE);
 
-                Imgproc.cvtColor (rgbaMat, grayMat, Imgproc.COLOR_RGBA2GRAY);
-                Imgproc.equalizeHist (grayMat, grayMat);
+                Mat downScaleGrayMat = imageOptimizationHelper.GetDownScaleMat(grayMat);
+
+                if (useOpenCVDetector)
+                    Imgproc.equalizeHist(downScaleGrayMat, downScaleGrayMat);
 
                 if (enableDetection && !isDetecting ) {
                     isDetecting = true;
 
-                    grayMat.copyTo (grayMat4Thread);
+                    downScaleGrayMat.copyTo(grayMat4Thread);
 
                     StartThread (ThreadWorker);
                 }
 
-                OpenCVForUnityUtils.SetImage (faceLandmarkDetector, grayMat);
-
-                Rect[] rects;
                 if (!useSeparateDetection) {
                     if (hasUpdatedDetectionResult) 
                     {
                         hasUpdatedDetectionResult = false;
 
-                        rectangleTracker.UpdateTrackedObjects (detectionResult.toList());
+                        rectangleTracker.UpdateTrackedObjects (detectionResult);
                     }
 
                     rectangleTracker.GetObjects (resultObjects, true);
 
-                    rects = rectangleTracker.CreateCorrectionBySpeedOfRects ();
+                    if (resultObjects.Count > 0) {
 
-                    if(rects.Length > 0){
+                        // set original size image
+                        OpenCVForUnityUtils.SetImage(faceLandmarkDetector, grayMat);
 
-                        OpenCVForUnity.Rect rect = rects [0];
+                        Rect rect = resultObjects[0];
 
-                        // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
-                        rect.y += (int)(rect.height * 0.1f);
+                        // restore to original size rect
+                        float downscaleRatio = imageOptimizationHelper.downscaleRatio;
+                        rect.x = (int)(rect.x * downscaleRatio);
+                        rect.y = (int)(rect.y * downscaleRatio);
+                        rect.width = (int)(rect.width * downscaleRatio);
+                        rect.height = (int)(rect.height * downscaleRatio);
 
-                        //detect landmark points
+                        // detect face landmark points
                         List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
                         if (enableOpticalFlowFilter) {
-                            opticalFlowFilter.Process (rgbaMat, points, points, false);
+                            opticalFlowFilter.Process (grayMat, points, points, false);
                         }
 
-                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix);
+                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix, arCamera.worldToCameraMatrix, arCamera.projectionMatrix);
 
                         if (displayCameraPreview) {
-                            //draw landmark points
-                            OpenCVForUnityUtils.DrawFaceLandmark (rgbaMat, points, new Scalar (0, 255, 0, 255), 2);
+                            // draw landmark points
+                            OpenCVForUnityUtils.DrawFaceLandmark (rgbaMat, points, COLOR_GREEN, 2);
+
+                            // draw face rect
+                            OpenCVForUnityUtils.DrawFaceRect(rgbaMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_RED, 2);
                         }
                     }
 
                 } else {
+
+                    Rect[] rectsWhereRegions;
 
                     if (hasUpdatedDetectionResult) {
                         hasUpdatedDetectionResult = false;
 
                         //Debug.Log("process: get rectsWhereRegions were got from detectionResult");
-                        rectsWhereRegions = detectionResult.toArray ();
-                    } else {
+                        rectsWhereRegions = detectionResult.ToArray ();
+
+                        if (displayCameraPreview)
+                            DrawDownScaleFaceRects(rgbaMat, rectsWhereRegions, imageOptimizationHelper.downscaleRatio, COLOR_BLUE, 1);
+                    }
+                    else {
                         //Debug.Log("process: get rectsWhereRegions from previous positions");
-                        rectsWhereRegions = rectangleTracker.CreateCorrectionBySpeedOfRects ();
+                        if (useOpenCVDetector)
+                        {
+                            rectsWhereRegions = rectangleTracker.CreateCorrectionBySpeedOfRects();
+                        }
+                        else
+                        {
+                            rectsWhereRegions = rectangleTracker.CreateRawRects();
+                        }
+
+                        if (displayCameraPreview)
+                            DrawDownScaleFaceRects(rgbaMat, rectsWhereRegions, imageOptimizationHelper.downscaleRatio, COLOR_GREEN, 1);
                     }
 
-                    detectedObjectsInRegions.Clear ();
-                    if (rectsWhereRegions.Length > 0) {
-                        int len = rectsWhereRegions.Length;
-                        for (int i = 0; i < len; i++) {
-                            DetectInRegion (grayMat, rectsWhereRegions [i], detectedObjectsInRegions);
+                    detectedObjectsInRegions.Clear();
+                    int len = rectsWhereRegions.Length;
+                    for (int i = 0; i < len; i++)
+                    {
+                        if (useOpenCVDetector)
+                        {
+                            DetectInRegion(downScaleGrayMat, rectsWhereRegions[i], detectedObjectsInRegions, cascade, true);
+                        }
+                        else
+                        {
+                            DetectInRegion(downScaleGrayMat, rectsWhereRegions[i], detectedObjectsInRegions, faceLandmarkDetector);
                         }
                     }
 
                     rectangleTracker.UpdateTrackedObjects (detectedObjectsInRegions);
-                    rectangleTracker.GetObjects (resultObjects, true);
+                    rectangleTracker.GetObjects (resultObjects, false);
 
                     if(resultObjects.Count > 0) {
 
-                        OpenCVForUnity.Rect rect = resultObjects [0];
+                        // set original size image
+                        OpenCVForUnityUtils.SetImage(faceLandmarkDetector, grayMat);
 
-                        // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
-                        rect.y += (int)(rect.height * 0.1f);
+                        Rect rect = resultObjects [0];
 
-                        //detect landmark points
+                        // restore to original size rect
+                        float downscaleRatio = imageOptimizationHelper.downscaleRatio;
+                        rect.x = (int)(rect.x * downscaleRatio);
+                        rect.y = (int)(rect.y * downscaleRatio);
+                        rect.width = (int)(rect.width * downscaleRatio);
+                        rect.height = (int)(rect.height * downscaleRatio);
+
+                        // detect face landmark points
                         List<Vector2> points = faceLandmarkDetector.DetectLandmark (new UnityEngine.Rect (rect.x, rect.y, rect.width, rect.height));
 
                         if (enableOpticalFlowFilter) {
-                            opticalFlowFilter.Process (rgbaMat, points, points, false);
+                            opticalFlowFilter.Process (grayMat, points, points, false);
                         }
 
-                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix);
+                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix, arCamera.worldToCameraMatrix, arCamera.projectionMatrix);
 
                         if (displayCameraPreview) {
-                            //draw landmark points
-                            OpenCVForUnityUtils.DrawFaceLandmark (rgbaMat, points, new Scalar (0, 255, 0, 255), 2);
+                            // draw landmark points
+                            OpenCVForUnityUtils.DrawFaceLandmark (rgbaMat, points, COLOR_GREEN, 2);
+
+                            // draw face rect
+                            OpenCVForUnityUtils.DrawFaceRect(rgbaMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_RED, 2);
                         }
                     }
                 }
 
                 if (displayCameraPreview) {
-                    OpenCVForUnity.Utils.fastMatToTexture2D (rgbaMat, texture);
+                    Utils.fastMatToTexture2D (rgbaMat, texture);
                 }
             }
         }
         #endif
 
-        private void UpdateARHeadTransform(List<Vector2> points, Matrix4x4 cameraToWorldMatrix)
+        private void UpdateARHeadTransform (List<Vector2> points, Matrix4x4 cameraToWorldMatrix, Matrix4x4 worldToCameraMatrix, Matrix4x4 projectionMatrix)
         {
-            // The coordinates in pixels of the object detected on the image projected onto the plane.
-            imagePoints.fromArray (
-                new Point ((points [38].x + points [41].x) / 2, (points [38].y + points [41].y) / 2),//l eye (Interpupillary breadth)
-                new Point ((points [43].x + points [46].x) / 2, (points [43].y + points [46].y) / 2),//r eye (Interpupillary breadth)
-                new Point (points [30].x, points [30].y),//nose (Nose top)
-                new Point (points [48].x, points [48].y),//l mouth (Mouth breadth)
-                new Point (points [54].x, points [54].y),//r mouth (Mouth breadth)
-                new Point (points [0].x, points [0].y),//l ear (Bitragion breadth)
-                new Point (points [16].x, points [16].y)//r ear (Bitragion breadth)
-            );
-                
-            // Estimate head pose.
-            if (rvec == null || tvec == null) {
-                rvec = new Mat (3, 1, CvType.CV_64FC1);
-                tvec = new Mat (3, 1, CvType.CV_64FC1);
-                Calib3d.solvePnP (objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec);
-            }
+            MatOfPoint3f objectPoints = null;
+            bool isRightEyeOpen = false;
+            bool isLeftEyeOpen = false;
+            bool isMouthOpen = false;
+            if (points.Count == 68)
+            {
 
-            double tvec_z = tvec.get (2, 0) [0];
+                objectPoints = objectPoints68;
 
-            if (double.IsNaN(tvec_z) || tvec_z < 0) { // if tvec is wrong data, do not use extrinsic guesses.
-                Calib3d.solvePnP (objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec);
-            }else{
-                Calib3d.solvePnP (objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec, true, Calib3d.SOLVEPNP_ITERATIVE);
-            }
-                
-            if (applyEstimationPose && !double.IsNaN(tvec_z)) {
+                imagePoints.fromArray(
+                    new Point((points[38].x + points[41].x) / 2, (points[38].y + points[41].y) / 2),//l eye (Interpupillary breadth)
+                    new Point((points[43].x + points[46].x) / 2, (points[43].y + points[46].y) / 2),//r eye (Interpupillary breadth)
+                    new Point(points[30].x, points[30].y),//nose (Tip)
+                    new Point(points[33].x, points[33].y),//nose (Subnasale)
+                    new Point(points[0].x, points[0].y),//l ear (Bitragion breadth)
+                    new Point(points[16].x, points[16].y)//r ear (Bitragion breadth)
+                );
 
-                if (Mathf.Abs ((float)(points [43].y - points [46].y)) > Mathf.Abs ((float)(points [42].x - points [45].x)) / 5.0) {
-                    if (displayEffects)
-                        rightEye.SetActive (true);
-                } else {
-                    if (displayEffects)
-                        rightEye.SetActive (false);
+                if (Mathf.Abs((float)(points[43].y - points[46].y)) > Mathf.Abs((float)(points[42].x - points[45].x)) / 5.0)
+                {
+                    isRightEyeOpen = true;
                 }
 
-                if (Mathf.Abs ((float)(points [38].y - points [41].y)) > Mathf.Abs ((float)(points [39].x - points [36].x)) / 5.0) {
-                    if (displayEffects)
-                        leftEye.SetActive (true);
-                } else {
-                    if (displayEffects)
-                        leftEye.SetActive (false);
+                if (Mathf.Abs((float)(points[38].y - points[41].y)) > Mathf.Abs((float)(points[39].x - points[36].x)) / 5.0)
+                {
+                    isLeftEyeOpen = true;
                 }
 
+                float noseDistance = Mathf.Abs((float)(points[27].y - points[33].y));
+                float mouseDistance = Mathf.Abs((float)(points[62].y - points[66].y));
+                if (mouseDistance > noseDistance / 5.0)
+                {
+                    isMouthOpen = true;
+                }
+                else
+                {
+                    isMouthOpen = false;
+                }
+
+            }
+            else if (points.Count == 17)
+            {
+
+                objectPoints = objectPoints17;
+
+                imagePoints.fromArray(
+                    new Point((points[2].x + points[3].x) / 2, (points[2].y + points[3].y) / 2),//l eye (Interpupillary breadth)
+                    new Point((points[4].x + points[5].x) / 2, (points[4].y + points[5].y) / 2),//r eye (Interpupillary breadth)
+                    new Point(points[0].x, points[0].y),//nose (Tip)
+                    new Point(points[1].x, points[1].y),//nose (Subnasale)
+                    new Point(points[6].x, points[6].y),//l ear (Bitragion breadth)
+                    new Point(points[8].x, points[8].y)//r ear (Bitragion breadth)
+                );
+
+                if (Mathf.Abs((float)(points[11].y - points[12].y)) > Mathf.Abs((float)(points[4].x - points[5].x)) / 5.0)
+                {
+                    isRightEyeOpen = true;
+                }
+
+                if (Mathf.Abs((float)(points[9].y - points[10].y)) > Mathf.Abs((float)(points[2].x - points[3].x)) / 5.0)
+                {
+                    isLeftEyeOpen = true;
+                }
+
+                float noseDistance = Mathf.Abs((float)(points[3].y - points[1].y));
+                float mouseDistance = Mathf.Abs((float)(points[14].y - points[16].y));
+                if (mouseDistance > noseDistance / 2.0)
+                {
+                    isMouthOpen = true;
+                }
+                else
+                {
+                    isMouthOpen = false;
+                }
+
+            }
+            else if (points.Count == 6)
+            {
+
+                objectPoints = objectPoints6;
+
+                imagePoints.fromArray(
+                    new Point((points[2].x + points[3].x) / 2, (points[2].y + points[3].y) / 2),//l eye (Interpupillary breadth)
+                    new Point((points[4].x + points[5].x) / 2, (points[4].y + points[5].y) / 2),//r eye (Interpupillary breadth)
+                    new Point(points[0].x, points[0].y),//nose (Tip)
+                    new Point(points[1].x, points[1].y)//nose (Subnasale)
+                );
+
+            }
+            else if (points.Count == 5)
+            {
+
+                objectPoints = objectPoints5;
+
+                imagePoints.fromArray(
+                    new Point(points[3].x, points[3].y),//l eye (Inner corner of the eye)
+                    new Point(points[1].x, points[1].y),//r eye (Inner corner of the eye)
+                    new Point(points[2].x, points[2].y),//l eye (Tail of the eye)
+                    new Point(points[0].x, points[0].y),//r eye (Tail of the eye)
+                    new Point(points[4].x, points[4].y)//nose (Nose top)
+                );
+            }
+
+            // estimate head pose
+            if (rvec == null || tvec == null)
+            {
+                rvec = new Mat(3, 1, CvType.CV_64FC1);
+                tvec = new Mat(3, 1, CvType.CV_64FC1);
+                Calib3d.solvePnP(objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec);
+            }
+
+            
+
+            /*
+            double tvec_x = tvec.get(0, 0)[0], tvec_y = tvec.get(1, 0)[0], tvec_z = tvec.get(2, 0)[0];
+            
+            bool isNotInViewport = false;
+            Matrix4x4 VP = projectionMatrix * worldToCameraMatrix;
+            Vector4 pos = VP * new Vector4((float)tvec_x, (float)tvec_y, (float)tvec_z, 1.0f);
+            if (pos.w != 0)
+            {
+                float x = pos.x / pos.w, y = pos.y / pos.w, z = pos.z / pos.w;
+                if (x < -1.0f || x > 1.0f || y < -1.0f || y > 1.0f || z < -1.0f || z > 1.0f)
+                    isNotInViewport = true;
+            }
+
+            if (double.IsNaN(tvec_z) || isNotInViewport)
+            { // if tvec is wrong data, do not use extrinsic guesses. (the estimated object is not in the camera field of view)
+                Calib3d.solvePnP(objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec);
+            }
+            else
+            {
+                Calib3d.solvePnP(objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec, true, Calib3d.SOLVEPNP_ITERATIVE);
+            }
+            //Debug.Log (tvec.dump() + " " + isNotInViewport);
+            */
+
+
+            
+            double tvec_z = tvec.get(2, 0)[0];
+
+            if (double.IsNaN(tvec_z) || tvec_z < 0)
+            { // if tvec is wrong data, do not use extrinsic guesses.
+                Calib3d.solvePnP(objectPoints68, imagePoints, camMatrix, distCoeffs, rvec, tvec);
+            }
+            else
+            {
+                Calib3d.solvePnP(objectPoints68, imagePoints, camMatrix, distCoeffs, rvec, tvec, true, Calib3d.SOLVEPNP_ITERATIVE);
+            }
+
+
+
+            if (applyEstimationPose && !double.IsNaN(tvec_z))
+            {
+
+                // Display effects.
                 if (displayHead)
-                    head.SetActive (true);
+                    head.SetActive(true);
                 if (displayAxes)
-                    axes.SetActive (true);
+                    axes.SetActive(true);
 
+                if (displayEffects)
+                {
+                    rightEye.SetActive(isRightEyeOpen);
+                    leftEye.SetActive(isLeftEyeOpen);
 
-                float noseDistance = Mathf.Abs ((float)(points [27].y - points [33].y));
-                float mouseDistance = Mathf.Abs ((float)(points [62].y - points [66].y));
-                if (mouseDistance > noseDistance / 5.0) {
-                    if (displayEffects) {
-                        mouth.SetActive (true);
-                        foreach (ParticleSystem ps in mouthParticleSystem) {
+                    if (isMouthOpen)
+                    {
+                        mouth.SetActive(true);
+                        foreach (ParticleSystem ps in mouthParticleSystem)
+                        {
                             var em = ps.emission;
                             em.enabled = true;
                             #if UNITY_5_5_OR_NEWER
                             var main = ps.main;
-                            main.startSizeMultiplier = 40 * (mouseDistance / noseDistance);
+                            main.startSizeMultiplier = 20;
                             #else
-                            ps.startSize = 40 * (mouseDistance / noseDistance);
+                            ps.startSize = 20;
                             #endif
                         }
                     }
-                } else {
-                    if (displayEffects) {
-                        foreach (ParticleSystem ps in mouthParticleSystem) {
+                    else
+                    {
+                        foreach (ParticleSystem ps in mouthParticleSystem)
+                        {
                             var em = ps.emission;
                             em.enabled = false;
                         }
                     }
                 }
-                    
+                
                 // Convert to unity pose data.
                 double[] rvecArr = new double[3];
-                rvec.get (0, 0, rvecArr);
+                rvec.get(0, 0, rvecArr);
                 double[] tvecArr = new double[3];
-                tvec.get (0, 0, tvecArr);
-                tvecArr [0] = tvecArr [0] / 1000.0;
-                tvecArr[1] = tvecArr[1] / 1000.0;
-                tvecArr[2] = tvecArr[2] / 1000.0 / imageOptimizationHelper.downscaleRatio;
-                PoseData poseData = ARUtils.ConvertRvecTvecToPoseData (rvecArr, tvecArr);
+                tvec.get(0, 0, tvecArr);
+                tvecArr[0] = tvecArr[0];
+                tvecArr[1] = tvecArr[1];
+                tvecArr[2] = tvecArr[2];
+                PoseData poseData = ARUtils.ConvertRvecTvecToPoseData(rvecArr, tvecArr);
+                
 
                 // Changes in pos/rot below these thresholds are ignored.
-                if (enableLowPassFilter) {
-                    ARUtils.LowpassPoseData (ref oldPoseData, ref poseData, positionLowPass, rotationLowPass);
+                if (enableLowPassFilter)
+                {
+                    ARUtils.LowpassPoseData(ref oldPoseData, ref poseData, positionLowPass, rotationLowPass);
                 }
                 oldPoseData = poseData;
 
                 // Create transform matrix.
-                transformationM = Matrix4x4.TRS (poseData.pos, poseData.rot, Vector3.one);
+                transformationM = Matrix4x4.TRS(poseData.pos, poseData.rot, Vector3.one);
 
                 // right-handed coordinates system (OpenCV) to left-handed one (Unity)
                 ARM = invertYM * transformationM;
@@ -893,18 +1202,16 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 // Apply the cameraToWorld matrix with the Z-axis inverted.
                 ARM = cameraToWorldMatrix * invertZM * ARM;
 
-                ARUtils.SetTransformFromMatrix (arGameObject.transform, ref ARM);
+                ARUtils.SetTransformFromMatrix(arGameObject.transform, ref ARM);
             }
         }
 
-        private void StartThread(Action action)
+        private void StartThread (Action action)
         {
-            #if UNITY_METRO && NETFX_CORE
+            #if WINDOWS_UWP || (!UNITY_WSA_10_0 && (NET_4_6 || NET_STANDARD_2_0))
             System.Threading.Tasks.Task.Run(() => action());
-            #elif UNITY_METRO
-            action.BeginInvoke(ar => action.EndInvoke(ar), null);
             #else
-            ThreadPool.QueueUserWorkItem (_ => action());
+            ThreadPool.QueueUserWorkItem(_ => action());
             #endif
         }
 
@@ -918,13 +1225,20 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             } 
         }
 
-        private void ThreadWorker()
+        private void ThreadWorker ()
         {
             isThreadRunning = true;
 
-            DetectObject ();
+            if (useOpenCVDetector)
+            {
+                DetectObject(grayMat4Thread, out detectionResult, cascade4Thread, true);
+            }
+            else
+            {
+                DetectObject(grayMat4Thread, out detectionResult, faceLandmarkDetector4Thread);
+            }
 
-            lock (sync) {
+            lock (ExecuteOnMainThread) {
                 if (ExecuteOnMainThread.Count == 0) {
                     ExecuteOnMainThread.Enqueue (() => {
                         OnDetectionDone ();
@@ -935,14 +1249,46 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             isThreadRunning = false;
         }
 
-        private void DetectObject()
+        private void DetectObject (Mat img, out List<Rect> detectedObjects, FaceLandmarkDetector landmarkDetector)
         {
-            MatOfRect objects = new MatOfRect ();
-            if (cascade4Thread != null)
-                cascade4Thread.detectMultiScale (grayMat, objects, 1.1, 2, Objdetect.CASCADE_SCALE_IMAGE, // TODO: objdetect.CV_HAAR_SCALE_IMAGE
-                    new Size (grayMat.cols () * minDetectionSizeRatio, grayMat.rows () * minDetectionSizeRatio), new Size ());
+            OpenCVForUnityUtils.SetImage(landmarkDetector, img);
 
-            detectionResult = objects;
+            List<UnityEngine.Rect> detectResult = landmarkDetector.Detect();
+
+            detectedObjects = new List<Rect>();
+
+            int len = detectResult.Count;
+            for (int i = 0; i < len; i++)
+            {
+                UnityEngine.Rect r = detectResult[i];
+                detectedObjects.Add(new Rect((int)r.x, (int)r.y, (int)r.width, (int)r.height));
+            }
+        }
+
+        private void DetectObject (Mat img, out List<Rect> detectedObjects, CascadeClassifier cascade, bool correctToDlibResult = false)
+        {
+            int d = Mathf.Min(img.width(), img.height());
+            d = (int)Mathf.Round(d * minDetectionSizeRatio);
+
+            MatOfRect objects = new MatOfRect();
+            if (cascade != null)
+                cascade.detectMultiScale(img, objects, 1.1, 2, Objdetect.CASCADE_SCALE_IMAGE, new Size(d, d), new Size());
+
+            detectedObjects = objects.toList();
+
+            if (correctToDlibResult)
+            {
+                int len = detectedObjects.Count;
+                for (int i = 0; i < len; i++)
+                {
+                    Rect r = detectedObjects[i];
+                    // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
+                    r.x += (int)(r.width * 0.05f);
+                    r.y += (int)(r.height * 0.1f);
+                    r.width = (int)(r.width * 0.9f);
+                    r.height = (int)(r.height * 0.9f);
+                }
+            }
         }
 
         private void OnDetectionDone()
@@ -952,36 +1298,108 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             isDetecting = false;
         }
 
-        private void DetectInRegion (Mat img, Rect r, List<Rect> detectedObjectsInRegions)
+        private void DetectInRegion (Mat img, Rect region, List<Rect> detectedObjectsInRegions, FaceLandmarkDetector landmarkDetector)
         {
-            Rect r0 = new Rect (new Point (), img.size ());
-            Rect r1 = new Rect (r.x, r.y, r.width, r.height);
-            Rect.inflate (r1, (int)((r1.width * coeffTrackingWindowSize) - r1.width) / 2,
+            Rect r0 = new Rect(new Point(), img.size());
+            Rect r1 = new Rect(region.x, region.y, region.width, region.height);
+            Rect.inflate(r1, (int)((r1.width * coeffTrackingWindowSize) - r1.width) / 2,
                 (int)((r1.height * coeffTrackingWindowSize) - r1.height) / 2);
-            r1 = Rect.intersect (r0, r1);
+            r1 = Rect.intersect(r0, r1);
 
-            if ((r1.width <= 0) || (r1.height <= 0)) {
-                Debug.Log ("DetectionBasedTracker::detectInRegion: Empty intersection");
+            if ((r1.width <= 0) || (r1.height <= 0))
+            {
+                Debug.Log("detectInRegion: Empty intersection");
                 return;
             }
 
-            int d = Math.Min (r.width, r.height);
-            d = (int)Math.Round (d * coeffObjectSizeToTrack);
+            using (Mat img1_roi = new Mat(img, r1))
+            using (Mat img1 = new Mat(r1.size(), img.type()))
+            {
+                img1_roi.copyTo(img1);
 
-            MatOfRect tmpobjects = new MatOfRect ();
+                OpenCVForUnityUtils.SetImage(landmarkDetector, img1);
 
-            Mat img1 = new Mat (img, r1);//subimage for rectangle -- without data copying
+                List<UnityEngine.Rect> detectResult = landmarkDetector.Detect();
 
-            cascade.detectMultiScale (img1, tmpobjects, 1.1, 2, 0 | Objdetect.CASCADE_DO_CANNY_PRUNING | Objdetect.CASCADE_SCALE_IMAGE | Objdetect.CASCADE_FIND_BIGGEST_OBJECT, new Size (d, d), new Size ());
-
-
-            Rect[] tmpobjectsArray = tmpobjects.toArray ();
-            int len = tmpobjectsArray.Length;
-            for (int i = 0; i < len; i++) {
-                Rect tmp = tmpobjectsArray [i];
-                Rect curres = new Rect (new Point (tmp.x + r1.x, tmp.y + r1.y), tmp.size ());
-                detectedObjectsInRegions.Add (curres);
+                int len = detectResult.Count;
+                for (int i = 0; i < len; i++)
+                {
+                    UnityEngine.Rect tmp = detectResult[i];
+                    Rect r = new Rect((int)(tmp.x + r1.x), (int)(tmp.y + r1.y), (int)tmp.width, (int)tmp.height);
+                    detectedObjectsInRegions.Add(r);
+                }
             }
+        }
+
+        private void DetectInRegion (Mat img, Rect region, List<Rect> detectedObjectsInRegions, CascadeClassifier cascade, bool correctToDlibResult = false)
+        {
+            Rect r0 = new Rect(new Point(), img.size());
+            Rect r1 = new Rect(region.x, region.y, region.width, region.height);
+            Rect.inflate(r1, (int)((r1.width * coeffTrackingWindowSize) - r1.width) / 2,
+                (int)((r1.height * coeffTrackingWindowSize) - r1.height) / 2);
+            r1 = Rect.intersect(r0, r1);
+
+            if ((r1.width <= 0) || (r1.height <= 0))
+            {
+                Debug.Log("detectInRegion: Empty intersection");
+                return;
+            }
+
+            int d = Math.Min(region.width, region.height);
+            d = (int)Math.Round(d * coeffObjectSizeToTrack);
+
+            using (MatOfRect tmpobjects = new MatOfRect())
+            using (Mat img1 = new Mat(img, r1)) //subimage for rectangle -- without data copying
+            {
+                cascade.detectMultiScale(img1, tmpobjects, 1.1, 2, 0 | Objdetect.CASCADE_DO_CANNY_PRUNING | Objdetect.CASCADE_SCALE_IMAGE | Objdetect.CASCADE_FIND_BIGGEST_OBJECT, new Size(d, d), new Size());
+
+                Rect[] tmpobjectsArray = tmpobjects.toArray();
+                int len = tmpobjectsArray.Length;
+                for (int i = 0; i < len; i++)
+                {
+                    Rect tmp = tmpobjectsArray[i];
+                    Rect r = new Rect(new Point(tmp.x + r1.x, tmp.y + r1.y), tmp.size());
+
+                    if (correctToDlibResult)
+                    {
+                        // correct the deviation of the detection result of the face rectangle of OpenCV and Dlib.
+                        r.x += (int)(r.width * 0.05f);
+                        r.y += (int)(r.height * 0.1f);
+                        r.width = (int)(r.width * 0.9f);
+                        r.height = (int)(r.height * 0.9f);
+                    }
+
+                    detectedObjectsInRegions.Add(r);
+                }
+            }
+        }
+
+        private void DrawDownScaleFaceRects (Mat img, Rect[] rects, float downscaleRatio, Scalar color, int thickness)
+        {
+            int len = rects.Length;
+            for (int i = 0; i < len; i++)
+            {
+                Rect rect = new Rect(
+                    (int)(rects[i].x * downscaleRatio),
+                    (int)(rects[i].y * downscaleRatio),
+                    (int)(rects[i].width * downscaleRatio),
+                    (int)(rects[i].height * downscaleRatio)
+                );
+                Imgproc.rectangle(img, rect, color, thickness);
+            }
+        }
+
+        private void AjustPointScale (MatOfPoint3f p, double scale)
+        {
+            Point3[] arr = p.toArray();
+            for (int i = 0; i < arr.Length; i++)
+            {
+                //arr[i] = new Point3(arr[i].x * scale, arr[i].y * scale, arr[i].z * scale);
+                arr[i].x *= scale;
+                arr[i].y *= scale;
+                arr[i].z *= scale;
+            }
+            p.fromArray(arr);
         }
 
         /// <summary>
@@ -990,7 +1408,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         void OnDestroy ()
         {
             imageOptimizationHelper.Dispose ();
-            #if NETFX_CORE && !DISABLE_HOLOLENSCAMSTREAM_API
+            #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
             webCamTextureToMatHelper.frameMatAcquired -= OnFrameMatAcquired;
             #endif
             webCamTextureToMatHelper.Dispose ();
@@ -998,11 +1416,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             if (faceLandmarkDetector != null)
                 faceLandmarkDetector.Dispose ();
 
+            if (faceLandmarkDetector4Thread != null)
+                faceLandmarkDetector4Thread.Dispose();
+
             if (rectangleTracker != null)
                 rectangleTracker.Dispose ();
-
-            if (rotMat != null)
-                rotMat.Dispose ();
         }
 
         /// <summary>
@@ -1050,11 +1468,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnDisplayCamreaPreviewToggleValueChanged ()
         {
-            if (displayCameraPreviewToggle.isOn) {
-                displayCameraPreview = true;
-            } else {
-                displayCameraPreview = false;
-            }
+            displayCameraPreview = displayCameraPreviewToggle.isOn;
+
             previewQuad.SetActive (displayCameraPreview);
         }
 
@@ -1063,16 +1478,21 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnUseSeparateDetectionToggleValueChanged ()
         {
-            if (useSeparateDetectionToggle.isOn) {
-                useSeparateDetection = true;
-            } else {
-                useSeparateDetection = false;
-            }
+            useSeparateDetection = useSeparateDetectionToggle.isOn;
 
-            lock (rectangleTracker) {
+            lock (rectangleTracker)
+            {
                 if (rectangleTracker != null)
-                    rectangleTracker.Reset ();
+                    rectangleTracker.Reset();
             }
+        }
+
+        /// <summary>
+        /// Raises the use OpenCV Detector toggle value changed event.
+        /// </summary>
+        public void OnUseOpenCVDetectorToggleValueChanged()
+        {
+            useOpenCVDetector = useOpenCVDetectorToggle.isOn;
         }
 
         /// <summary>
@@ -1121,11 +1541,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnEnableOpticalFlowFilterToggleValueChanged ()
         {
-            if (enableOpticalFlowFilterToggle.isOn) {
-                enableOpticalFlowFilter = true;
-            } else {
-                enableOpticalFlowFilter = false;
-            }
+            enableOpticalFlowFilter = enableOpticalFlowFilterToggle.isOn;
         }
 
         /// <summary>
@@ -1147,8 +1563,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnTapped ()
         {
-            if (EventSystem.current.IsPointerOverGameObject ())
+            // Determine if a Gaze pointer is over a GUI.
+            if (GazeManager.Instance.HitObject != null && (GazeManager.Instance.HitObject.GetComponent<Button>() != null || GazeManager.Instance.HitObject.GetComponent<Toggle>() != null
+                 || GazeManager.Instance.HitObject.GetComponent<Text>() != null || GazeManager.Instance.HitObject.GetComponent<Image>() != null))
+            {
                 return;
+            }
 
             if (applyEstimationPose) {
                 applyEstimationPose = false;

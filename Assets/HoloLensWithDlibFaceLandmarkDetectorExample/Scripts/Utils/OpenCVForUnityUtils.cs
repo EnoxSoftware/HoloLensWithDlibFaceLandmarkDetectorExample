@@ -1,10 +1,10 @@
-﻿using UnityEngine;
+﻿using System;
 using System.Collections;
-using System;
 using System.Collections.Generic;
-
-using OpenCVForUnity;
+using UnityEngine;
 using DlibFaceLandmarkDetector;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.ImgprocModule;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
@@ -48,8 +48,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         public static void DrawFaceRect (Mat imgMat, DlibFaceLandmarkDetector.FaceLandmarkDetector.RectDetection rect, Scalar color, int thickness)
         {            
             UnityEngine.Rect _rect = rect.rect;
-            Imgproc.putText (imgMat, "detection_confidence : " + rect.detection_confidence, new Point (_rect.xMin, _rect.yMin - 20), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
-            Imgproc.putText (imgMat, "weight_index : " + rect.weight_index, new Point (_rect.xMin, _rect.yMin - 5), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
+            Imgproc.putText (imgMat, "detection_confidence : " + rect.detection_confidence, new Point (_rect.xMin, _rect.yMin - 20), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
+            Imgproc.putText (imgMat, "weight_index : " + rect.weight_index, new Point (_rect.xMin, _rect.yMin - 5), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
             Imgproc.rectangle (imgMat, new Point (_rect.xMin, _rect.yMin), new Point (_rect.xMax, _rect.yMax), color, thickness);
         }
 
@@ -63,14 +63,15 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         public static void DrawFaceRect (Mat imgMat, double[] rect, Scalar color, int thickness)
         {            
             if (rect.Length > 4)
-                Imgproc.putText (imgMat, "detection_confidence : " + rect [4], new Point (rect [0], rect [1] - 20), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
+                Imgproc.putText (imgMat, "detection_confidence : " + rect [4], new Point (rect [0], rect [1] - 20), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
             if (rect.Length > 5)
-                Imgproc.putText (imgMat, "weight_index : " + rect [5], new Point (rect [0], rect [1] - 5), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
+                Imgproc.putText (imgMat, "weight_index : " + rect [5], new Point (rect [0], rect [1] - 5), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
             Imgproc.rectangle (imgMat, new Point (rect [0], rect [1]), new Point (rect [0] + rect [2], rect [1] + rect [3]), color, thickness);
         }
 
         /// <summary>
         /// Draws a face landmark.
+        /// This method supports 68 landmark points.
         /// </summary>
         /// <param name="imgMat">Image mat.</param>
         /// <param name="points">Points.</param>
@@ -85,6 +86,39 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 Imgproc.line (imgMat, new Point (points [1].x, points [1].y), new Point (points [4].x, points [4].y), color, thickness);
                 Imgproc.line (imgMat, new Point (points [4].x, points [4].y), new Point (points [3].x, points [3].y), color, thickness);
                 Imgproc.line (imgMat, new Point (points [3].x, points [3].y), new Point (points [2].x, points [2].y), color, thickness);
+
+            }
+            if (points.Count == 6) {
+
+                Imgproc.line (imgMat, new Point (points [2].x, points [2].y), new Point (points [3].x, points [3].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [4].x, points [4].y), new Point (points [5].x, points [5].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [3].x, points [3].y), new Point (points [0].x, points [0].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [4].x, points [4].y), new Point (points [0].x, points [0].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [0].x, points [0].y), new Point (points [1].x, points [1].y), color, thickness);
+
+            }
+            if (points.Count == 17) {
+
+                Imgproc.line (imgMat, new Point (points [2].x, points [2].y), new Point (points [9].x, points [9].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [9].x, points [9].y), new Point (points [3].x, points [3].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [3].x, points [3].y), new Point (points [10].x, points [10].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [10].x, points [10].y), new Point (points [2].x, points [2].y), color, thickness);
+
+                Imgproc.line (imgMat, new Point (points [4].x, points [4].y), new Point (points [11].x, points [11].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [11].x, points [11].y), new Point (points [5].x, points [5].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [5].x, points [5].y), new Point (points [12].x, points [12].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [12].x, points [12].y), new Point (points [4].x, points [4].y), color, thickness);
+
+                Imgproc.line (imgMat, new Point (points [3].x, points [3].y), new Point (points [0].x, points [0].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [4].x, points [4].y), new Point (points [0].x, points [0].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [0].x, points [0].y), new Point (points [1].x, points [1].y), color, thickness);
+
+                for (int i = 14; i <= 16; ++i)
+                    Imgproc.line (imgMat, new Point (points [i].x, points [i].y), new Point (points [i - 1].x, points [i - 1].y), color, thickness);
+                Imgproc.line (imgMat, new Point (points [16].x, points [16].y), new Point (points [13].x, points [13].y), color, thickness);
+
+                for (int i = 6; i <= 8; i++)
+                    Imgproc.circle (imgMat, new Point (points [i].x, points [i].y), 2, color, -1);
 
             } else if (points.Count == 68) {
                 
@@ -126,7 +160,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             // Draw the index number of facelandmark points.
             if (drawIndexNumbers) {
                 for (int i = 0; i < points.Count; ++i)
-                    Imgproc.putText (imgMat, i.ToString (), new Point (points [i].x, points [i].y), Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
+                    Imgproc.putText (imgMat, i.ToString (), new Point (points [i].x, points [i].y), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
             }
         }
 
@@ -188,12 +222,13 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             // Draw the index number of facelandmark points.
             if (drawIndexNumbers) {
                 for (int i = 0; i < points.Count; ++i)
-                    Imgproc.putText (imgMat, i.ToString (), points [i], Core.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
+                    Imgproc.putText (imgMat, i.ToString (), points [i], Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, new Scalar (255, 255, 255, 255), 1, Imgproc.LINE_AA, false);
             }
         }
 
         /// <summary>
         /// Draws a face landmark.
+        /// This method supports 68 landmark points.
         /// </summary>
         /// <param name="imgMat">Image mat.</param>
         /// <param name="points">Detected object landmark data.[x_0, y_0, x_1, y_1, ...]</param>

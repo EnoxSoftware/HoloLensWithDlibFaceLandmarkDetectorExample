@@ -1,7 +1,10 @@
 ﻿using UnityEngine;
-using System.Collections;
+using UnityEngine.UI;
 using System.Collections.Generic;
-using UnityEngine.EventSystems;
+using HoloToolkit.Unity.InputModule;
+using DlibFaceLandmarkDetector;
+using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.ImgprocModule;
 
 #if UNITY_2017_2_OR_NEWER
 using UnityEngine.XR.WSA.WebCam;
@@ -12,13 +15,6 @@ using UnityEngine.VR.WSA.WebCam;
 using UnityEngine.VR.WSA.Input;
 using WSAWebCamCameraParameters = UnityEngine.VR.WSA.WebCam.CameraParameters;
 #endif
-
-
-#if UNITY_5_3 || UNITY_5_3_OR_NEWER
-using UnityEngine.SceneManagement;
-#endif
-using OpenCVForUnity;
-using DlibFaceLandmarkDetector;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
@@ -52,9 +48,21 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         FaceLandmarkDetector faceLandmarkDetector;
 
+        /// <summary>
+        /// The dlib shape predictor file name.
+        /// </summary>
+        string dlibShapePredictorFileName = "sp_human_face_68.dat";
+
+        /// <summary>
+        /// The dlib shape predictor file path.
+        /// </summary>
+        string dlibShapePredictorFilePath;
+
         protected override void Start ()
         {
             base.Start ();
+
+            dlibShapePredictorFileName = HoloLensWithDlibFaceLandmarkDetectorExample.dlibShapePredictorFileName;
 
             m_Canvas = GameObject.Find ("PhotoCaptureCanvas");
             m_CanvasRenderer = m_Canvas.GetComponent<Renderer> () as Renderer;
@@ -97,7 +105,13 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             rgbaMat = new Mat (m_Texture.height, m_Texture.width, CvType.CV_8UC4);
             colors = new Color32[rgbaMat.cols () * rgbaMat.rows ()];
-            faceLandmarkDetector = new FaceLandmarkDetector (DlibFaceLandmarkDetector.Utils.getFilePath ("sp_human_face_68.dat"));
+
+            dlibShapePredictorFilePath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath(dlibShapePredictorFileName);
+            if (string.IsNullOrEmpty(dlibShapePredictorFilePath))
+            {
+                Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+            }
+            faceLandmarkDetector = new FaceLandmarkDetector (dlibShapePredictorFilePath);
 
             PhotoCapture.CreateAsync (false, OnCreatedPhotoCaptureObject);
         }
@@ -122,8 +136,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         void OnTappedEvent (InteractionSourceKind source, int tapCount, Ray headRay)
         #endif
         {
-            if (EventSystem.current.IsPointerOverGameObject ())
+            // Determine if a Gaze pointer is over a GUI.
+            if (GazeManager.Instance.HitObject != null && (GazeManager.Instance.HitObject.GetComponent<Button>() != null || GazeManager.Instance.HitObject.GetComponent<Toggle>() != null
+                 || GazeManager.Instance.HitObject.GetComponent<Text>() != null || GazeManager.Instance.HitObject.GetComponent<Image>() != null))
+            {
                 return;
+            }
 
             if (m_CapturingPhoto) {
                 return;
@@ -148,7 +166,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             photoCaptureFrame.UploadImageDataToTexture (m_Texture);
 
 
-            OpenCVForUnity.Utils.texture2DToMat (m_Texture, rgbaMat);
+            OpenCVForUnity.UnityUtils.Utils.texture2DToMat (m_Texture, rgbaMat);
 
             // fill all black.
 //            Imgproc.rectangle (rgbaMat, new Point (0, 0), new Point (rgbaMat.width (), rgbaMat.height ()), new Scalar (0, 0, 0, 0), -1);
@@ -178,9 +196,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             }
 
 
-            Imgproc.putText (rgbaMat, "W:" + rgbaMat.width () + " H:" + rgbaMat.height () + " SO:" + Screen.orientation, new Point (5, rgbaMat.rows () - 10), Core.FONT_HERSHEY_SIMPLEX, 1.5, new Scalar (0, 255, 0, 255), 2, Imgproc.LINE_AA, false);
+            Imgproc.putText (rgbaMat, "W:" + rgbaMat.width () + " H:" + rgbaMat.height () + " SO:" + Screen.orientation, new Point (5, rgbaMat.rows () - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 1.5, new Scalar (0, 255, 0, 255), 2, Imgproc.LINE_AA, false);
 
-            OpenCVForUnity.Utils.matToTexture2D (rgbaMat, m_Texture, colors);
+            OpenCVForUnity.UnityUtils.Utils.matToTexture2D (rgbaMat, m_Texture, colors);
 
 
 

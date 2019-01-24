@@ -1,19 +1,15 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿#pragma warning disable 0109
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using HoloToolkit.Unity.InputModule;
 using HoloToolkit.Unity;
-
-#if UNITY_5_3 || UNITY_5_3_OR_NEWER
-using UnityEngine.SceneManagement;
-#endif
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
     // Prevent HoloToolKit InputManager Singletons from working multiple scenes.
     public class ExampleSceneBase : MonoBehaviour {
 
-        protected MixedRealityCameraManager camera;
+        protected new MixedRealityCameraManager camera;
         protected HoloToolkit.Unity.InputModule.Cursor cursor;
         protected InputManager input;
 
@@ -34,11 +30,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             cam.backgroundColor = Color.black;
             CameraCache.Refresh (cam);
 
-            #if UNITY_5_3 || UNITY_5_3_OR_NEWER
             SceneManager.LoadScene (sceneName);
-            #else
-            Application.LoadLevel (sceneName);
-            #endif
         }
     }
 }
