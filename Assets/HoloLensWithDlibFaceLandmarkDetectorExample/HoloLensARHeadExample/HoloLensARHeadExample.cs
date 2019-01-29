@@ -212,6 +212,11 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         Matrix4x4 invertZM;
 
         /// <summary>
+        /// The matrix that AR camera P * V.
+        /// </summary>
+        Matrix4x4 VP;
+
+        /// <summary>
         /// The transformation matrix.
         /// </summary>
         Matrix4x4 transformationM;
@@ -473,7 +478,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             Debug.Log("Screen.width " + Screen.width + " Screen.height " + Screen.height + " Screen.orientation " + Screen.orientation);
 
             previewQuad.GetComponent<MeshRenderer>().material.mainTexture = texture;
-            previewQuad.transform.localScale = new Vector3 (1, height/width, 1);
+            previewQuad.transform.localScale = new Vector3 (0.2f * width / height, 0.2f, 1);
             previewQuad.SetActive (displayCameraPreview);
 
 
@@ -496,6 +501,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             distCoeffs = new MatOfDouble (distCoeffs1, distCoeffs2, distCoeffs3, distCoeffs4, distCoeffs5);
             Debug.Log ("distCoeffs " + distCoeffs.dump ());
+
+
+            // create AR camera P * V Matrix
+            Matrix4x4 P = ARUtils.CalculateProjectionMatrixFromCameraMatrixValues((float)fx, (float)fy, (float)cx, (float)cy, width, height, 0.3f, 5f);
+            Matrix4x4 V = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(1, 1, -1));
+            VP = P * V;
 
             //Calibration camera
             Size imageSize = new Size (width, height);
@@ -796,7 +807,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 }
 
                 if (points != null) {
-                    UpdateARHeadTransform (points, cameraToWorldMatrix, cameraToWorldMatrix.inverse, projectionMatrix);
+                    UpdateARHeadTransform (points, cameraToWorldMatrix);
                 }
 
                 bgraMat.Dispose ();
@@ -883,7 +894,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                             opticalFlowFilter.Process (grayMat, points, points, false);
                         }
 
-                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix, arCamera.worldToCameraMatrix, arCamera.projectionMatrix);
+                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix);
 
                         if (displayCameraPreview) {
                             // draw landmark points
@@ -960,7 +971,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                             opticalFlowFilter.Process (grayMat, points, points, false);
                         }
 
-                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix, arCamera.worldToCameraMatrix, arCamera.projectionMatrix);
+                        UpdateARHeadTransform (points, arCamera.cameraToWorldMatrix);
 
                         if (displayCameraPreview) {
                             // draw landmark points
@@ -979,7 +990,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
         #endif
 
-        private void UpdateARHeadTransform (List<Vector2> points, Matrix4x4 cameraToWorldMatrix, Matrix4x4 worldToCameraMatrix, Matrix4x4 projectionMatrix)
+        private void UpdateARHeadTransform (List<Vector2> points, Matrix4x4 cameraToWorldMatrix)
         {
             MatOfPoint3f objectPoints = null;
             bool isRightEyeOpen = false;
@@ -1092,13 +1103,27 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 Calib3d.solvePnP(objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec);
             }
 
-            
 
             /*
+            double tvec_z = tvec.get(2, 0)[0];
+
+            if (double.IsNaN(tvec_z) || tvec_z < 0)
+            { // if tvec is wrong data, do not use extrinsic guesses.
+                Calib3d.solvePnP(objectPoints68, imagePoints, camMatrix, distCoeffs, rvec, tvec);
+            }
+            else
+            {
+                Calib3d.solvePnP(objectPoints68, imagePoints, camMatrix, distCoeffs, rvec, tvec, true, Calib3d.SOLVEPNP_ITERATIVE);
+            }
+
+            if (applyEstimationPose && !double.IsNaN(tvec_z))
+            {
+            */
+
+
             double tvec_x = tvec.get(0, 0)[0], tvec_y = tvec.get(1, 0)[0], tvec_z = tvec.get(2, 0)[0];
-            
+
             bool isNotInViewport = false;
-            Matrix4x4 VP = projectionMatrix * worldToCameraMatrix;
             Vector4 pos = VP * new Vector4((float)tvec_x, (float)tvec_y, (float)tvec_z, 1.0f);
             if (pos.w != 0)
             {
@@ -1115,25 +1140,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             {
                 Calib3d.solvePnP(objectPoints, imagePoints, camMatrix, distCoeffs, rvec, tvec, true, Calib3d.SOLVEPNP_ITERATIVE);
             }
-            //Debug.Log (tvec.dump() + " " + isNotInViewport);
-            */
 
+            //Debug.Log (tvec.dump());
 
-            
-            double tvec_z = tvec.get(2, 0)[0];
-
-            if (double.IsNaN(tvec_z) || tvec_z < 0)
-            { // if tvec is wrong data, do not use extrinsic guesses.
-                Calib3d.solvePnP(objectPoints68, imagePoints, camMatrix, distCoeffs, rvec, tvec);
-            }
-            else
-            {
-                Calib3d.solvePnP(objectPoints68, imagePoints, camMatrix, distCoeffs, rvec, tvec, true, Calib3d.SOLVEPNP_ITERATIVE);
-            }
-
-
-
-            if (applyEstimationPose && !double.IsNaN(tvec_z))
+            if (applyEstimationPose && !isNotInViewport)
             {
 
                 // Display effects.
