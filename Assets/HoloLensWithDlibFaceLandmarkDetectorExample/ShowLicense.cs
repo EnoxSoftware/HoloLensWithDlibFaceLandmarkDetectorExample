@@ -1,29 +1,27 @@
 ﻿using UnityEngine;
-using System.Collections;
+using UnityEngine.SceneManagement;
 
 namespace HoloLensWithDlibFaceLandmarkDetectorExample
 {
-    public class ShowLicense : ExampleSceneBase
+    public class ShowLicense : MonoBehaviour
     {
         // Use this for initialization
-        protected override void Start ()
+        protected void Start()
         {
-            base.Start ();
-            
         }
-        
+
         // Update is called once per frame
-        void Update ()
+        void Update()
         {
-            
+
         }
 
         /// <summary>
         /// Raises the back button click event.
         /// </summary>
-        public void OnBackButtonClick ()
+        public void OnBackButtonClick()
         {
-            LoadScene ("HoloLensWithDlibFaceLandmarkDetectorExample");
+            SceneManager.LoadScene("HoloLensWithDlibFaceLandmarkDetectorExample");
         }
     }
 }
