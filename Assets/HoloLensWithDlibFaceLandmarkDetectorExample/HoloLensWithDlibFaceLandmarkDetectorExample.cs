@@ -26,7 +26,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
         public Dropdown dlibShapePredictorNameDropdown;
 
-        static DlibShapePredictorNamePreset dlibShapePredictorName = DlibShapePredictorNamePreset.sp_human_face_68;
+        static DlibShapePredictorNamePreset dlibShapePredictorName = DlibShapePredictorNamePreset.sp_human_face_17_for_mobile;
 
         /// <summary>
         /// The name of dlib shape predictor file to use in the example scenes.

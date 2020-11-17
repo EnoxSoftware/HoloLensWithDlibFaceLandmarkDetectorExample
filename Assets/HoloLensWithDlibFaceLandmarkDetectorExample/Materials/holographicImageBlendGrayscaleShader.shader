@@ -1,6 +1,6 @@
 ﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
 
-Shader "AR/HolographicImageBlendShader"
+Shader "AR/HolographicImageBlendGrayscaleShader"
 {
     // Referring to https://forum.unity3d.com/threads/holographic-photo-blending-with-photocapture.416023/.
 
@@ -76,7 +76,8 @@ Shader "AR/HolographicImageBlendShader"
                 // Currently our signedUV's x and y coordinates will fall between -1 and 1.
                 // We need to map this range from 0 to 1 so that we can sample our texture.
                 float2 uv = signedUV * 0.5 + float2(0.5, 0.5);
-                fixed4 finalColor = tex2D(_MainTex, uv);
+                float texcol_a = tex2D(_MainTex, uv).a;
+                fixed4 finalColor = fixed4(texcol_a, texcol_a, texcol_a, 1.0f);
  
                 // Finally add a circular vignette effect starting from the center
                 // of the image.
@@ -86,6 +87,7 @@ Shader "AR/HolographicImageBlendShader"
  
                 return finalColor;
             }
+
             ENDCG
         }
     }
