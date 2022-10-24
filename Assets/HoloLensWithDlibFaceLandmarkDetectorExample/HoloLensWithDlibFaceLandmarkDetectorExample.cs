@@ -1,4 +1,4 @@
-﻿using OpenCVForUnity.CoreModule;
+using OpenCVForUnity.CoreModule;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -75,6 +75,18 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             versionInfo.text += ".NET";
 #endif
 
+            versionInfo.text += " / ";
+
+#if XR_PLUGIN_WINDOWSMR
+            versionInfo.text += "XR_PLUGIN_WINDOWSMR";
+#elif XR_PLUGIN_OPENXR
+            versionInfo.text += "XR_PLUGIN_OPENXR";
+#elif BUILTIN_XR
+            versionInfo.text += "BUILTIN_XR";
+#else
+            versionInfo.text += "XR system unknown";
+#endif
+
             scrollRect.verticalNormalizedPosition = verticalNormalizedPosition;
 
             dlibShapePredictorNameDropdown.value = (int)dlibShapePredictorName;
@@ -97,19 +109,19 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             SceneManager.LoadScene("ShowLicense");
         }
 
-        public void OnHoloLensPhotoCaptureExampleButtonClick()
+        public void OnHLPhotoCaptureExampleButtonClick()
         {
-            SceneManager.LoadScene("HoloLensPhotoCaptureExample");
+            SceneManager.LoadScene("HLPhotoCaptureExample");
         }
 
-        public void OnHoloLensFaceLandmarkDetectionExampleButtonClick()
+        public void OnHLFaceLandmarkDetectionExampleButtonClick()
         {
-            SceneManager.LoadScene("HoloLensFaceLandmarkDetectionExample");
+            SceneManager.LoadScene("HLFaceLandmarkDetectionExample");
         }
 
-        public void OnHoloLensARHeadExampleButtonClick()
+        public void OnHLARHeadExampleButtonClick()
         {
-            SceneManager.LoadScene("HoloLensARHeadExample");
+            SceneManager.LoadScene("HLARHeadExample");
         }
 
 

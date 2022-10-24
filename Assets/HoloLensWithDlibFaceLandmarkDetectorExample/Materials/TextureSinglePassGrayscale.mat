@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: holographicImageBlend_material
-  m_Shader: {fileID: 4800000, guid: b9b32109bf3c6dd4fa82b185590d4728, type: 3}
+  m_Name: TextureSinglePassGrayscale
+  m_Shader: {fileID: 4800000, guid: f4b0fa5b2ab2dbb4c8fd6950056dd3a7, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 5
   m_EnableInstancingVariants: 0
@@ -20,7 +20,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _MainTex:
-        m_Texture: {fileID: 0}
+        m_Texture: {fileID: 2800000, guid: e266aedc629209a4196966ac4bf20d68, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
