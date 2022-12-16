@@ -15,8 +15,8 @@
 * Visual Studio 2019
 * Unity 2019.4.31f1 / 2020.3.38f1
 * [Microsoft Mixed Reality Toolkit](https://github.com/Microsoft/MixedRealityToolkit-Unity/releases) v2.8.2  
-* [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 2.4.9+ 
-* [Dlib FaceLandmarkDetector](https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314?aid=1011l4ehR) 1.3.3+ 
+* [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 2.5.0+ 
+* [Dlib FaceLandmarkDetector](https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314?aid=1011l4ehR) 1.3.4+ 
 * [EnoxSoftware/HoloLensCameraStream](https://github.com/EnoxSoftware/HoloLensCameraStream)
 
 
@@ -25,11 +25,13 @@
 1. Create a new project. (`HoloLensWithDlibFaceLandmarkDetectorExample`)
     * Change the platform to `UWP` in the "Build Settings" window.
 1. Import the OpenCVForUnity.
-    * Setup the OpenCVForUnity. (Tools > OpenCV for Unity > Set Plugin Import Settings)
-    * Move the "OpenCVForUnity/StreamingAssets/objdetect/haarcascade_frontalface_alt.xml" and "OpenCVForUnity/StreamingAssets/objdetect/lbpcascade_frontalface.xml" to the "Assets/StreamingAssets/objdetect/" folder.
+    * Select MenuItem[Tools/OpenCV for Unity/Open Setup Tools].
+    * Click the [Move StreamingAssets Folder] button.
+    * Leave the following files and delete the rest. ("StreamingAssets/OpenCVForUnity/objdetect/haarcascade_frontalface_alt.xml", "lbpcascade_ frontalface.xml")
 1. Import the DlibFaceLandmarkDetector.
-    * Setup the OpenCVForUnity. (Tools > Dlib FaceLandmarkDetector > Set Plugin Import Settings)
-    * Move the "DlibFaceLandmarkDetector/StreamingAssets/sp_human_face_68.dat", "sp_human_face_68_for_mobile.dat", "sp_human_face_17.dat", "sp_human_face_17_for_mobile.dat" and "sp_human_face_6.dat" to the "Assets/StreamingAssets/" folder. 
+    * Select MenuItem[Tools/Dlib FaceLandmark Detector/Open Setup Tools].
+    * Click the [Move StreamingAssets Folder] button.
+    * Leave the following files and delete the rest. ("StreamingAssets/DlibFaceLandmarkDetector/sp_human_face_68.dat", "sp_human_face_68_for_mobile.dat", "sp_human_face_17.dat", "sp_human_face_17_for_mobile.dat" and "sp_human_face_6.dat")
 1. Clone HoloLensCameraStream repository.
     * Copy the "HoloLensCameraStream/HoloLensVideoCaptureExample/Assets/CamStream/" folder to the "Assets/" folder.
 1. Import the Microsoft Mixed Reality Toolkit. (Recommend using [MixedRealityFeatureTool](https://www.microsoft.com/en-us/download/details.aspx?id=102778))

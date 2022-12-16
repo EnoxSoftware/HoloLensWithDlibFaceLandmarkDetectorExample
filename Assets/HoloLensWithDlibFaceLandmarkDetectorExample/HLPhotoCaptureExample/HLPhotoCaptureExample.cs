@@ -38,7 +38,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         private uint numPhotos = 0;
 
         private FaceLandmarkDetector faceLandmarkDetector;
-        private string dlibShapePredictorFileName = "sp_human_face_68.dat";
+        private string dlibShapePredictorFileName = "DlibFaceLandmarkDetector/sp_human_face_68.dat";
         private string dlibShapePredictorFilePath;
 
         private IEnumerator Start()
@@ -48,7 +48,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             dlibShapePredictorFilePath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath(dlibShapePredictorFileName);
             if (string.IsNullOrEmpty(dlibShapePredictorFilePath))
             {
-                Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/” to “Assets/StreamingAssets/” folder. ");
+                Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/DlibFaceLandmarkDetector/” to “Assets/StreamingAssets/DlibFaceLandmarkDetector/” folder. ");
             }
             faceLandmarkDetector = new FaceLandmarkDetector(dlibShapePredictorFilePath);
 
