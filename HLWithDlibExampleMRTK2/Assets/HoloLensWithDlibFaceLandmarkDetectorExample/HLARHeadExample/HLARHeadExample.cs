@@ -22,7 +22,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
     /// HoloLens AR Head Example
     /// An example of AR head projection using OpenCVForUnity and DlibLandmarkDetector on Hololens.
     /// </summary>
-    [RequireComponent(typeof(HLCameraStreamToMatHelper), typeof(ImageOptimizationHelper))]
+    [RequireComponent(typeof(HLCameraStream2MatHelper), typeof(ImageOptimizationHelper))]
     public class HLARHeadExample : MonoBehaviour
     {
         [SerializeField, HeaderAttribute("Preview")]
@@ -265,7 +265,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// <summary>
         /// The webcam texture to mat helper.
         /// </summary>
-        HLCameraStreamToMatHelper webCamTextureToMatHelper;
+        HLCameraStream2MatHelper webCamTextureToMatHelper;
 
         /// <summary>
         /// The image optimization helper.
@@ -296,11 +296,6 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// The dlib shape predictor file name.
         /// </summary>
         string dlibShapePredictorFileName = "DlibFaceLandmarkDetector/sp_human_face_68.dat";
-
-        /// <summary>
-        /// The dlib shape predictor file path.
-        /// </summary>
-        string dlibShapePredictorFilePath;
 
         Scalar COLOR_WHITE = new Scalar(255, 255, 255, 255);
         Scalar COLOR_GRAY = new Scalar(128, 128, 128, 255);
@@ -386,8 +381,18 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         public Text debugStr;
 
 
+        string cascade_filepath;
+        string cascade4Thread_filepath;
+        string dlibShapePredictor_filepath;
+        string dlibShapePredictor4Thread_filepath;
+
+        /// <summary>
+        /// The CancellationTokenSource.
+        /// </summary>
+        CancellationTokenSource cts = new CancellationTokenSource();
+
         // Use this for initialization
-        protected void Start()
+        async void Start()
         {
             displayCameraPreviewToggle.isOn = displayCameraPreview;
             enableDownScaleToggle.isOn = enableDownScale;
@@ -400,29 +405,69 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             enableLerpFilterToggle.isOn = enableLerpFilter;
 
             imageOptimizationHelper = gameObject.GetComponent<ImageOptimizationHelper>();
-            webCamTextureToMatHelper = gameObject.GetComponent<HLCameraStreamToMatHelper>();
+            webCamTextureToMatHelper = gameObject.GetComponent<HLCameraStream2MatHelper>();
 #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
             webCamTextureToMatHelper.frameMatAcquired += OnFrameMatAcquired;
 #endif
-            webCamTextureToMatHelper.outputColorFormat = WebCamTextureToMatHelper.ColorFormat.GRAY;
-            webCamTextureToMatHelper.Initialize();
 
             rectangleTracker = new RectangleTracker();
 
-            dlibShapePredictorFileName = HoloLensWithDlibFaceLandmarkDetectorExample.dlibShapePredictorFileName;
-            dlibShapePredictorFilePath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath(dlibShapePredictorFileName);
-            if (string.IsNullOrEmpty(dlibShapePredictorFilePath))
-            {
-                Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/DlibFaceLandmarkDetector/” to “Assets/StreamingAssets/DlibFaceLandmarkDetector/” folder. ");
-            }
-            faceLandmarkDetector = new FaceLandmarkDetector(dlibShapePredictorFilePath);
 
-            dlibShapePredictorFilePath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath("DlibFaceLandmarkDetector/sp_human_face_6.dat");
-            if (string.IsNullOrEmpty(dlibShapePredictorFilePath))
+            // Asynchronously retrieves the readable file path from the StreamingAssets directory.
+            if (debugStr != null)
+            {
+                debugStr.text = "Preparing file access...";
+            }
+
+            cascade_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask("OpenCVForUnity/objdetect/lbpcascade_frontalface.xml", cancellationToken: cts.Token);
+            //cascade4Thread_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask("OpenCVForUnity/objdetect/haarcascade_frontalface_alt.xml", cancellationToken: cts.Token);
+            cascade4Thread_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask("OpenCVForUnity/objdetect/lbpcascade_frontalface.xml", cancellationToken: cts.Token);
+            dlibShapePredictorFileName = HoloLensWithDlibFaceLandmarkDetectorExample.dlibShapePredictorFileName;
+            dlibShapePredictor_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask(dlibShapePredictorFileName, cancellationToken: cts.Token);
+            dlibShapePredictor4Thread_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask("DlibFaceLandmarkDetector/sp_human_face_6.dat", cancellationToken: cts.Token);
+
+            if (debugStr != null)
+            {
+                debugStr.text = "";
+            }
+
+            Run();
+        }
+
+        // Use this for initialization
+        void Run()
+        {
+            cascade = new CascadeClassifier();
+            cascade.load(cascade_filepath);
+#if !WINDOWS_UWP || UNITY_EDITOR
+            // "empty" method is not working on the UWP platform.
+            if (cascade.empty())
+            {
+                Debug.LogError("cascade file is not loaded. Please copy from “OpenCVForUnity/StreamingAssets/OpenCVForUnity/objdetect/” to “Assets/StreamingAssets/OpenCVForUnity/objdetect/” folder. ");
+            }
+#endif
+
+            cascade4Thread = new CascadeClassifier();
+            cascade4Thread.load(cascade4Thread_filepath);
+#if !WINDOWS_UWP || UNITY_EDITOR
+            // "empty" method is not working on the UWP platform.
+            if (cascade4Thread.empty())
+            {
+                Debug.LogError("cascade file is not loaded. Please copy from “OpenCVForUnity/StreamingAssets/OpenCVForUnity/objdetect/” to “Assets/StreamingAssets/OpenCVForUnity/objdetect/” folder. ");
+            }
+#endif
+
+            if (string.IsNullOrEmpty(dlibShapePredictor_filepath))
             {
                 Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/DlibFaceLandmarkDetector/” to “Assets/StreamingAssets/DlibFaceLandmarkDetector/” folder. ");
             }
-            faceLandmarkDetector4Thread = new FaceLandmarkDetector(dlibShapePredictorFilePath);
+            faceLandmarkDetector = new FaceLandmarkDetector(dlibShapePredictor_filepath);
+
+            if (string.IsNullOrEmpty(dlibShapePredictor4Thread_filepath))
+            {
+                Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/DlibFaceLandmarkDetector/” to “Assets/StreamingAssets/DlibFaceLandmarkDetector/” folder. ");
+            }
+            faceLandmarkDetector4Thread = new FaceLandmarkDetector(dlibShapePredictor4Thread_filepath);
 
 
             // set 3d face object points. (right-handed coordinates system)
@@ -469,6 +514,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             opticalFlowFilter = new OFPointsFilter((int)faceLandmarkDetector.GetShapePredictorNumParts());
             opticalFlowFilter.diffCheckSensitivity /= imageOptimizationHelper.downscaleRatio;
+
+            webCamTextureToMatHelper.outputColorFormat = Source2MatHelperColorFormat.GRAY;
+            webCamTextureToMatHelper.Initialize();
         }
 
         /// <summary>
@@ -584,29 +632,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             mouthParticleSystem = mouth.GetComponentsInChildren<ParticleSystem>(true);
 
-
-            //grayMat = new Mat();
-            cascade = new CascadeClassifier();
-            cascade.load(Utils.getFilePath("OpenCVForUnity/objdetect/lbpcascade_frontalface.xml"));
-#if !WINDOWS_UWP || UNITY_EDITOR
-            // "empty" method is not working on the UWP platform.
-            if (cascade.empty())
-            {
-                Debug.LogError("cascade file is not loaded. Please copy from “OpenCVForUnity/StreamingAssets/OpenCVForUnity/objdetect/” to “Assets/StreamingAssets/OpenCVForUnity/objdetect/” folder. ");
-            }
-#endif
-
             grayMat4Thread = new Mat();
-            cascade4Thread = new CascadeClassifier();
-            //cascade4Thread.load(Utils.getFilePath("OpenCVForUnity/objdetect/haarcascade_frontalface_alt.xml"));
-            cascade4Thread.load(Utils.getFilePath("OpenCVForUnity/objdetect/lbpcascade_frontalface.xml"));
-#if !WINDOWS_UWP || UNITY_EDITOR
-            // "empty" method is not working on the UWP platform.
-            if (cascade4Thread.empty())
-            {
-                Debug.LogError("cascade file is not loaded. Please copy from “OpenCVForUnity/StreamingAssets/OpenCVForUnity/objdetect/” to “Assets/StreamingAssets/OpenCVForUnity/objdetect/” folder. ");
-            }
-#endif
         }
 
         /// <summary>
@@ -630,14 +656,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 ExecuteOnMainThread.Clear();
             }
 
-            if (cascade != null)
-                cascade.Dispose();
-
             if (grayMat4Thread != null)
                 grayMat4Thread.Dispose();
-
-            if (cascade4Thread != null)
-                cascade4Thread.Dispose();
 
             rectangleTracker.Reset();
 
@@ -667,12 +687,13 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         }
 
         /// <summary>
-        /// Raises the web cam texture to mat helper error occurred event.
+        /// Raises the webcam texture to mat helper error occurred event.
         /// </summary>
         /// <param name="errorCode">Error code.</param>
-        public void OnWebCamTextureToMatHelperErrorOccurred(WebCamTextureToMatHelper.ErrorCode errorCode)
+        /// <param name="message">Message.</param>
+        public void OnWebCamTextureToMatHelperErrorOccurred(Source2MatHelperErrorCode errorCode, string message)
         {
-            Debug.Log("OnWebCamTextureToMatHelperErrorOccurred " + errorCode);
+            Debug.Log("OnWebCamTextureToMatHelperErrorOccurred " + errorCode + ":" + message);
         }
 
 #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
@@ -1536,6 +1557,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             webCamTextureToMatHelper.Dispose();
             imageOptimizationHelper.Dispose();
 
+            if (cascade != null)
+                cascade.Dispose();
+
+            if (cascade4Thread != null)
+                cascade4Thread.Dispose();
+
             if (faceLandmarkDetector != null)
                 faceLandmarkDetector.Dispose();
 
@@ -1544,6 +1571,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             if (rectangleTracker != null)
                 rectangleTracker.Dispose();
+
+            if (cts != null)
+                cts.Dispose();
         }
 
         /// <summary>

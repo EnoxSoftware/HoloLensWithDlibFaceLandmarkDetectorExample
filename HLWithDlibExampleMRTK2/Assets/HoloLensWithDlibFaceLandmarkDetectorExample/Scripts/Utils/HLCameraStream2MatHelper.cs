@@ -25,30 +25,70 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
     /// This is called every time there is a new frame image mat available.
     /// The Mat object's type is 'CV_8UC4' or 'CV_8UC3' or 'CV_8UC1' (ColorFormat is determined by the outputColorFormat setting).
     /// </summary>
-    /// <param name="videoCaptureSample">The recently captured frame image mat.</param>
+    /// <param name="mat">The recently captured frame image mat.</param>
     /// <param name="projectionMatrix">The projection matrices.</param>
     /// <param name="cameraToWorldMatrix">The camera to world matrices.</param>
     /// <param name="cameraIntrinsics">The camera intrinsics.</param>
     public delegate void FrameMatAcquiredCallback(Mat mat, Matrix4x4 projectionMatrix, Matrix4x4 cameraToWorldMatrix, CameraIntrinsics cameraIntrinsics);
 
     /// <summary>
-    /// Hololens camera stream to mat helper.
-    /// v 1.0.7
-    /// Depends on EnoxSoftware/HoloLensCameraStream (https://github.com/EnoxSoftware/HoloLensCameraStream).
-    /// Depends on OpenCVForUnity version 2.4.1 (WebCamTextureToMatHelper v 1.1.2) or later.
+    /// A helper component class for obtaining camera frames from HoloLensCameraStream and converting them to OpenCV <c>Mat</c> format in real-time.
+    /// </summary>
+    /// <remarks>
+    /// The <c>HLCameraStream2MatHelper</c> class captures video frames from a device's camera using HoloLensCameraStream 
+    /// and converts each frame to an OpenCV <c>Mat</c> object every frame. 
     /// 
-    /// By setting outputColorFormat to BGRA or GRAY, processing that does not include extra color conversion is performed.
+    /// This component is particularly useful for image processing tasks in Unity, such as computer vision applications, 
+    /// where real-time camera input in <c>Mat</c> format is required. It enables seamless integration of OpenCV-based 
+    /// image processing algorithms with HoloLens camera input.
     /// 
+    /// <para>
+    /// FrameMatAcquiredCallback:
+    /// The <c>FrameMatAcquiredCallback</c> delegate is invoked each time a new frame is captured and converted to a Mat object.
+    /// This delegate wraps the <c>HoloLensCameraStream.VideoCapture.FrameSampleAcquired</c> callback to provide the frame data 
+    /// in Mat format, along with the projection matrix, camera-to-world matrix, and camera intrinsics for the captured frame.
+    /// </para>
+    /// <para>
+    /// <strong>Usage Notes:</strong>
+    /// <list type="bullet">
+    /// <item>
+    /// The callback is executed outside of the Unity application's main thread. To safely use Unity API functions or 
+    /// update Unity objects within the callback, use <c>UnityEngine.WSA.Application.InvokeOnAppThread(() => { ... })</c> 
+    /// to dispatch operations to the application thread.
+    /// </item>
+    /// <item>
+    /// The Mat object passed to the callback is managed by the helper class and should not be stored for long-term use. 
+    /// Copy the data if further processing is required beyond the callback's scope.
+    /// </item>
+    /// </list>
+    /// </para>
+    /// 
+    /// <para><strong>Note:</strong> By setting outputColorFormat to BGRA or GRAY, processing that does not include extra color conversion is performed.</para>
+    /// <para><strong>Note:</strong> Depends on <a href="https://github.com/EnoxSoftware/HoloLensCameraStream">EnoxSoftware/HoloLensCameraStream</a>.</para>
+    /// <para><strong>Note:</strong> Depends on OpenCVForUnity version 2.6.4 or later.</para>
+    /// </remarks>
+    /// <example>
+    /// Attach this component to a GameObject and call <c>GetMat()</c> to retrieve the latest camera frame in <c>Mat</c> format. 
+    /// The helper class manages camera start/stop operations and frame updates internally.
+    /// </example>
+    /// 
+    /// <example>
     /// Usage:
     /// Add Define Symbols: "Open File > Build Settings > Player Settings > Other Settings" and add the following to Scripting Define Symbols depending on the XR system used in your project.
-    /// This is the setup needed to get the correct values from the TryGetCameraToWorldMatrix method.
-    ///    Legacy built-in XR                          ; "BUILTIN_XR"
+    /// <code>
+    /// {
+    ///    Legacy built-in XR                          : "BUILTIN_XR"
     ///    XR Plugin Management(Windows Mixed Reality) : "XR_PLUGIN_WINDOWSMR"
     ///    XR Plugin Management(OpenXR)                : "XR_PLUGIN_OPENXR"
+    /// }
+    /// </code>
+    /// </example>
     /// 
-    /// 
+    /// <example>
     /// Combination of camera frame size and frame rate that can be acquired on Hololens. (width x height : framerate)
-    /// (See https://learn.microsoft.com/en-us/windows/mixed-reality/develop/advanced-concepts/locatable-camera-overview)
+    /// <a href="https://learn.microsoft.com/en-us/windows/mixed-reality/develop/advanced-concepts/locatable-camera-overview">https://learn.microsoft.com/en-us/windows/mixed-reality/develop/advanced-concepts/locatable-camera-overview</a>
+    /// <code>
+    /// {
     /// 
     /// Hololens1
     /// 
@@ -126,8 +166,10 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
     /// 424x240 : 30
     /// 424x240 : 15
     /// 
-    /// </summary>
-    public class HLCameraStreamToMatHelper : WebCamTextureToMatHelper
+    /// }
+    /// </code>
+    /// </example>
+    public class HLCameraStream2MatHelper : WebCamTexture2MatHelper
     {
         /// <summary>
         /// This will be called whenever a new camera frame image available is converted to Mat.
@@ -140,7 +182,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         protected CameraIntrinsics cameraIntrinsics;
 
         /// <summary>
-        /// Returns the camera intrinsics.
+        /// Return the camera intrinsics.
         /// </summary>
         /// <returns>The camera intrinsics.</returns>
         public virtual CameraIntrinsics GetCameraIntrinsics()
@@ -160,6 +202,8 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                     _requestedDeviceName = value;
                     if (hasInitDone)
                         Initialize();
+                    else if (isInitWaiting)
+                        Initialize(autoPlayAfterInitialize);
                 }
             }
         }
@@ -175,6 +219,8 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                     _requestedWidth = _value;
                     if (hasInitDone)
                         Initialize();
+                    else if (isInitWaiting)
+                        Initialize(autoPlayAfterInitialize);
                 }
             }
         }
@@ -190,6 +236,8 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                     _requestedHeight = _value;
                     if (hasInitDone)
                         Initialize();
+                    else if (isInitWaiting)
+                        Initialize(autoPlayAfterInitialize);
                 }
             }
         }
@@ -203,7 +251,9 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                 {
                     _requestedIsFrontFacing = value;
                     if (hasInitDone)
-                        Initialize(_requestedIsFrontFacing, requestedFPS, rotate90Degree);
+                        Initialize(_requestedIsFrontFacing, requestedFPS, rotate90Degree, IsPlaying());
+                    else if (isInitWaiting)
+                        Initialize(_requestedIsFrontFacing, requestedFPS, rotate90Degree, autoPlayAfterInitialize);
                 }
             }
         }
@@ -218,11 +268,13 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                     _rotate90Degree = value;
                     if (hasInitDone)
                         Initialize();
+                    else if (isInitWaiting)
+                        Initialize(autoPlayAfterInitialize);
                 }
             }
         }
 
-        public override ColorFormat outputColorFormat
+        public override Source2MatHelperColorFormat outputColorFormat
         {
             get { return _outputColorFormat; }
             set
@@ -232,6 +284,8 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                     _outputColorFormat = value;
                     if (hasInitDone)
                         Initialize();
+                    else if (isInitWaiting)
+                        Initialize(autoPlayAfterInitialize);
                 }
             }
         }
@@ -243,13 +297,13 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
             {
                 _requestedFPS = Mathf.Clamp(value, -1f, float.MaxValue);
                 if (hasInitDone)
-                {
                     Initialize();
-                }
+                else if (isInitWaiting)
+                    Initialize(autoPlayAfterInitialize);
             }
         }
 
-        new protected ColorFormat baseColorFormat = ColorFormat.BGRA;
+        new protected Source2MatHelperColorFormat baseColorFormat = Source2MatHelperColorFormat.BGRA;
 
         protected System.Object lockObject = new System.Object();
         protected System.Object matrixLockObject = new System.Object();
@@ -426,7 +480,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
 
             if (hasInitEventCompleted && frameMatAcquired != null)
             {
-                Mat mat = new Mat(frameSampleHeight, frameSampleWidth, CvType.CV_8UC(Channels(outputColorFormat)));
+                Mat mat = new Mat(frameSampleHeight, frameSampleWidth, CvType.CV_8UC(Source2MatHelperUtils.Channels(outputColorFormat)));
 
                 if (baseColorFormat == outputColorFormat)
                 {
@@ -434,14 +488,14 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                 }
                 else
                 {
-                    Mat baseMat = new Mat(frameSampleHeight, frameSampleWidth, CvType.CV_8UC(Channels(baseColorFormat)));
+                    Mat baseMat = new Mat(frameSampleHeight, frameSampleWidth, CvType.CV_8UC(Source2MatHelperUtils.Channels(baseColorFormat)));
                     MatUtils.copyToMat<byte>(latestImageBytes, baseMat);
-                    Imgproc.cvtColor(baseMat, mat, ColorConversionCodes(baseColorFormat, outputColorFormat));
+                    Imgproc.cvtColor(baseMat, mat, Source2MatHelperUtils.ColorConversionCodes(baseColorFormat, outputColorFormat));
                 }
 
                 if (_rotate90Degree)
                 {
-                    Mat rotatedFrameMat = new Mat(frameSampleWidth, frameSampleHeight, CvType.CV_8UC(Channels(outputColorFormat)));
+                    Mat rotatedFrameMat = new Mat(frameSampleWidth, frameSampleHeight, CvType.CV_8UC(Source2MatHelperUtils.Channels(outputColorFormat)));
                     Core.rotate(mat, rotatedFrameMat, Core.ROTATE_90_CLOCKWISE);
                     mat.Dispose();
 
@@ -470,7 +524,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
             cameraParams.cameraResolutionHeight = resolution.height;
             cameraParams.cameraResolutionWidth = resolution.width;
             cameraParams.frameRate = Mathf.RoundToInt(frameRate);
-            cameraParams.pixelFormat = (outputColorFormat == ColorFormat.GRAY) ? CapturePixelFormat.NV12 : CapturePixelFormat.BGRA32;
+            cameraParams.pixelFormat = (outputColorFormat == Source2MatHelperColorFormat.GRAY) ? CapturePixelFormat.NV12 : CapturePixelFormat.BGRA32;
             cameraParams.rotateImage180Degrees = false;
             cameraParams.enableHolograms = false;
             cameraParams.enableVideoStabilization = false;
@@ -481,7 +535,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
 #endif
 
         /// <summary>
-        /// Returns the video capture.
+        /// Return the video capture.
         /// </summary>
         /// <returns>The video capture.</returns>
         public virtual HoloLensCameraStream.VideoCapture GetVideoCapture()
@@ -574,7 +628,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Initializes this instance by coroutine.
+        /// Initialize this instance by coroutine.
         /// </summary>
         protected override IEnumerator _Initialize()
         {
@@ -594,6 +648,10 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
             }
 
             isInitWaiting = true;
+
+            // Wait one frame before starting initialization process
+            yield return null;
+
 
             while (isChangeVideoModeWaiting)
             {
@@ -615,7 +673,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                             CancelInitCoroutine();
 
                             if (onErrorOccurred != null)
-                                onErrorOccurred.Invoke(ErrorCode.UNKNOWN);
+                                onErrorOccurred.Invoke(Source2MatHelperErrorCode.UNKNOWN, "!result2.success");
                         }
                         else
                         {
@@ -660,7 +718,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                         CancelInitCoroutine();
 
                         if (onErrorOccurred != null)
-                            onErrorOccurred.Invoke(ErrorCode.CAMERA_DEVICE_NOT_EXIST);
+                            onErrorOccurred.Invoke(Source2MatHelperErrorCode.CAMERA_DEVICE_NOT_EXIST, "Did not find a video capture object. You may not be using the HoloLens.");
 
                         return;
                     }
@@ -687,7 +745,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                             CancelInitCoroutine();
 
                             if (onErrorOccurred != null)
-                                onErrorOccurred.Invoke(ErrorCode.UNKNOWN);
+                                onErrorOccurred.Invoke(Source2MatHelperErrorCode.UNKNOWN, "!result.success");
                         }
                         else
                         {
@@ -709,11 +767,11 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                 }
                 else if (didUpdateThisFrame)
                 {
-                    Debug.Log("HololensCameraStreamToMatHelper:: " + "name:" + "" + " width:" + frameSampleWidth + " height:" + frameSampleHeight + " fps:" + cameraParams.frameRate);
+                    Debug.Log("HLCameraStream2MatHelper:: " + "name:" + "" + " width:" + frameSampleWidth + " height:" + frameSampleHeight + " fps:" + cameraParams.frameRate);
 
-                    baseColorFormat = (outputColorFormat == ColorFormat.GRAY) ? ColorFormat.GRAY : ColorFormat.BGRA;
+                    baseColorFormat = (outputColorFormat == Source2MatHelperColorFormat.GRAY) ? Source2MatHelperColorFormat.GRAY : Source2MatHelperColorFormat.BGRA;
 
-                    baseMat = new Mat(frameSampleHeight, frameSampleWidth, CvType.CV_8UC(Channels(baseColorFormat)));
+                    baseMat = new Mat(frameSampleHeight, frameSampleWidth, CvType.CV_8UC(Source2MatHelperUtils.Channels(baseColorFormat)));
 
                     if (baseColorFormat == outputColorFormat)
                     {
@@ -721,11 +779,11 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                     }
                     else
                     {
-                        frameMat = new Mat(baseMat.rows(), baseMat.cols(), CvType.CV_8UC(Channels(outputColorFormat)));
+                        frameMat = new Mat(baseMat.rows(), baseMat.cols(), CvType.CV_8UC(Source2MatHelperUtils.Channels(outputColorFormat)));
                     }
 
                     if (_rotate90Degree)
-                        rotatedFrameMat = new Mat(frameMat.cols(), frameMat.rows(), CvType.CV_8UC(Channels(outputColorFormat)));
+                        rotatedFrameMat = new Mat(frameMat.cols(), frameMat.rows(), CvType.CV_8UC(Source2MatHelperUtils.Channels(outputColorFormat)));
 
                     isInitWaiting = false;
                     hasInitDone = true;
@@ -763,7 +821,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                     initCoroutine = null;
 
                     if (onErrorOccurred != null)
-                        onErrorOccurred.Invoke(ErrorCode.TIMEOUT);
+                        onErrorOccurred.Invoke(Source2MatHelperErrorCode.TIMEOUT, string.Empty);
                 }
                 else
                 {
@@ -771,13 +829,13 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
                     initCoroutine = null;
 
                     if (onErrorOccurred != null)
-                        onErrorOccurred.Invoke(ErrorCode.TIMEOUT);
+                        onErrorOccurred.Invoke(Source2MatHelperErrorCode.TIMEOUT, string.Empty);
                 }
             }
         }
 
         /// <summary>
-        /// Indicates whether this instance has been initialized.
+        /// Indicate whether this instance has been initialized.
         /// </summary>
         /// <returns><c>true</c>, if this instance has been initialized, <c>false</c> otherwise.</returns>
         public override bool IsInitialized()
@@ -786,7 +844,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Starts the camera.
+        /// Start the active camera.
         /// </summary>
         public override void Play()
         {
@@ -811,7 +869,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Pauses the active camera.
+        /// Pause the active camera.
         /// </summary>
         public override void Pause()
         {
@@ -820,7 +878,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Stops the active camera.
+        /// Stop the active camera.
         /// </summary>
         public override void Stop()
         {
@@ -845,7 +903,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Indicates whether the active camera is currently playing.
+        /// Indicate whether the active camera is currently playing.
         /// </summary>
         /// <returns><c>true</c>, if the active camera is playing, <c>false</c> otherwise.</returns>
         public override bool IsPlaying()
@@ -857,7 +915,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Indicates whether the active camera device is currently front facng.
+        /// Indicate whether the active camera device is currently front facng.
         /// </summary>
         /// <returns><c>true</c>, if the active camera device is front facng, <c>false</c> otherwise.</returns>
         public override bool IsFrontFacing()
@@ -866,7 +924,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Returns the active camera device name.
+        /// Return the active camera device name.
         /// </summary>
         /// <returns>The active camera device name.</returns>
         public override string GetDeviceName()
@@ -875,7 +933,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Returns the active camera width.
+        /// Return the active camera width.
         /// </summary>
         /// <returns>The active camera width.</returns>
         public override int GetWidth()
@@ -886,7 +944,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Returns the active camera height.
+        /// Return the active camera height.
         /// </summary>
         /// <returns>The active camera height.</returns>
         public override int GetHeight()
@@ -897,7 +955,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Returns the active camera framerate.
+        /// Return the active camera framerate.
         /// </summary>
         /// <returns>The active camera framerate.</returns>
         public override float GetFPS()
@@ -906,16 +964,16 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Returns the webcam texture.
+        /// Return the active WebcamTexture.
         /// </summary>
-        /// <returns>The webcam texture.</returns>
+        /// <returns>The active WebcamTexture.</returns>
         public override WebCamTexture GetWebCamTexture()
         {
             return null;
         }
 
         /// <summary>
-        /// Returns the camera to world matrix.
+        /// Return the camera to world matrix.
         /// </summary>
         /// <returns>The camera to world matrix.</returns>
         public override Matrix4x4 GetCameraToWorldMatrix()
@@ -924,7 +982,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Returns the projection matrix matrix.
+        /// Return the projection matrix matrix.
         /// </summary>
         /// <returns>The projection matrix.</returns>
         public override Matrix4x4 GetProjectionMatrix()
@@ -933,7 +991,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Indicates whether the video buffer of the frame has been updated.
+        /// Indicate whether the video buffer of the frame has been updated.
         /// </summary>
         /// <returns><c>true</c>, if the video buffer has been updated <c>false</c> otherwise.</returns>
         public override bool DidUpdateThisFrame()
@@ -945,10 +1003,12 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Gets the mat of the current frame.
+        /// Get the mat of the current frame.
+        /// </summary>
+        /// <remarks>
         /// The Mat object's type is 'CV_8UC4' or 'CV_8UC3' or 'CV_8UC1' (ColorFormat is determined by the outputColorFormat setting).
         /// Please do not dispose of the returned mat as it will be reused.
-        /// </summary>
+        /// </remarks>
         /// <returns>The mat of the current frame.</returns>
         public override Mat GetMat()
         {
@@ -964,7 +1024,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
             else
             {
                 MatUtils.copyToMat<byte>(latestImageBytes, baseMat);
-                Imgproc.cvtColor(baseMat, frameMat, ColorConversionCodes(baseColorFormat, outputColorFormat));
+                Imgproc.cvtColor(baseMat, frameMat, Source2MatHelperUtils.ColorConversionCodes(baseColorFormat, outputColorFormat));
             }
 
             if (rotatedFrameMat != null)
@@ -983,7 +1043,7 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Flips the mat.
+        /// Flip the mat.
         /// </summary>
         /// <param name="mat">Mat.</param>
         protected override void FlipMat(Mat mat, bool flipVertical, bool flipHorizontal)
@@ -1067,12 +1127,12 @@ namespace HoloLensWithOpenCVForUnity.UnityUtils.Helper
         }
 
         /// <summary>
-        /// Releases all resource used by the <see cref="WebCamTextureToMatHelper"/> object.
+        /// Releases all resource used by the <see cref="HLCameraStream2MatHelper"/> object.
         /// </summary>
-        /// <remarks>Call <see cref="Dispose"/> when you are finished using the <see cref="WebCamTextureToMatHelper"/>. The
-        /// <see cref="Dispose"/> method leaves the <see cref="WebCamTextureToMatHelper"/> in an unusable state. After
-        /// calling <see cref="Dispose"/>, you must release all references to the <see cref="WebCamTextureToMatHelper"/> so
-        /// the garbage collector can reclaim the memory that the <see cref="WebCamTextureToMatHelper"/> was occupying.</remarks>
+        /// <remarks>Call <see cref="Dispose"/> when you are finished using the <see cref="HLCameraStream2MatHelper"/>. The
+        /// <see cref="Dispose"/> method leaves the <see cref="HLCameraStream2MatHelper"/> in an unusable state. After
+        /// calling <see cref="Dispose"/>, you must release all references to the <see cref="HLCameraStream2MatHelper"/> so
+        /// the garbage collector can reclaim the memory that the <see cref="HLCameraStream2MatHelper"/> was occupying.</remarks>
         public override void Dispose()
         {
             if (colors != null)

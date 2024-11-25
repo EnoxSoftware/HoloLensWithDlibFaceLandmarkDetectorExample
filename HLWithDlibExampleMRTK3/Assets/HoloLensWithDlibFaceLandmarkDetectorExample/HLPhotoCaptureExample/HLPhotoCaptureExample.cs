@@ -7,6 +7,7 @@ using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ImgprocModule;
 using System.Collections;
 using System.Linq;
+using System.Threading;
 
 #if UNITY_2018_2_OR_NEWER
 using UnityEngine.Windows.WebCam;
@@ -38,18 +39,34 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
         private FaceLandmarkDetector faceLandmarkDetector;
         private string dlibShapePredictorFileName = "DlibFaceLandmarkDetector/sp_human_face_68.dat";
-        private string dlibShapePredictorFilePath;
 
-        private IEnumerator Start()
+        /// <summary>
+        /// The CancellationTokenSource.
+        /// </summary>
+        CancellationTokenSource cts = new CancellationTokenSource();
+
+        // Use this for initialization
+        async void Start()
         {
-            dlibShapePredictorFileName = HoloLensWithDlibFaceLandmarkDetectorExample.dlibShapePredictorFileName;
+            // Asynchronously retrieves the readable file path from the StreamingAssets directory.
+            if (text != null)
+            {
+                text.text = "Preparing file access...";
+            }
 
-            dlibShapePredictorFilePath = DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePath(dlibShapePredictorFileName);
-            if (string.IsNullOrEmpty(dlibShapePredictorFilePath))
+            dlibShapePredictorFileName = HoloLensWithDlibFaceLandmarkDetectorExample.dlibShapePredictorFileName;
+            string dlibShapePredictor_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask(dlibShapePredictorFileName, cancellationToken: cts.Token);
+
+            if (text != null)
+            {
+                text.text = "";
+            }
+
+            if (string.IsNullOrEmpty(dlibShapePredictor_filepath))
             {
                 Debug.LogError("shape predictor file does not exist. Please copy from “DlibFaceLandmarkDetector/StreamingAssets/DlibFaceLandmarkDetector/” to “Assets/StreamingAssets/DlibFaceLandmarkDetector/” folder. ");
             }
-            faceLandmarkDetector = new FaceLandmarkDetector(dlibShapePredictorFilePath);
+            faceLandmarkDetector = new FaceLandmarkDetector(dlibShapePredictor_filepath);
 
 
             var resolutions = PhotoCapture.SupportedResolutions;
@@ -59,7 +76,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 {
                     text.text = "Resolutions not available. Did you provide web cam access?";
                 }
-                yield return null;
+                return;
             }
 
             cameraResolution = resolutions.OrderByDescending((res) => res.width * res.height).First();
@@ -87,6 +104,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             if (faceLandmarkDetector != null)
                 faceLandmarkDetector.Dispose();
+
+            if (cts != null)
+                cts.Dispose();
         }
 
         private void OnPhotoCaptureCreated(PhotoCapture captureObject)
@@ -177,8 +197,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                 Mat bgraMat = new Mat(targetTexture.height, targetTexture.width, CvType.CV_8UC4);
 
-                // For BGRA or BGR format, use the fastTexture2DToMat method.
-                OpenCVForUnity.UnityUtils.Utils.fastTexture2DToMat(targetTexture, bgraMat);
+                // For BGRA or BGR format, use the texture2DToMatRaw method.
+                OpenCVForUnity.UnityUtils.Utils.texture2DToMatRaw(targetTexture, bgraMat);
 
                 OpenCVForUnityUtils.SetImage(faceLandmarkDetector, bgraMat);
 
@@ -206,8 +226,8 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
                 Imgproc.putText(bgraMat, targetTexture.format + " W:" + bgraMat.width() + " H:" + bgraMat.height(), new Point(5, bgraMat.rows() - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 1.5, new Scalar(255, 0, 0, 255), 2, Imgproc.LINE_AA, false);
 
-                // For BGRA or BGR format, use the fastMatToTexture2D method.
-                OpenCVForUnity.UnityUtils.Utils.fastMatToTexture2D(bgraMat, targetTexture);
+                // For BGRA or BGR format, use the matToTexture2DRaw method.
+                OpenCVForUnity.UnityUtils.Utils.matToTexture2DRaw(bgraMat, targetTexture);
                 bgraMat.Dispose();
 
 
