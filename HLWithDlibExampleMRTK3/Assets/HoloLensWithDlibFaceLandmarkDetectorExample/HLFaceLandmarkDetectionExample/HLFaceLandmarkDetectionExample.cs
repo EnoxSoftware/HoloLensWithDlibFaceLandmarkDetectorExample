@@ -1,12 +1,14 @@
 using DlibFaceLandmarkDetector;
+using DlibFaceLandmarkDetector.UnityIntegration;
 using HoloLensCameraStream;
 using HoloLensWithDlibFaceLandmarkDetectorExample.RectangleTrack;
-using HoloLensWithOpenCVForUnity.UnityUtils.Helper;
+using HoloLensWithOpenCVForUnity.UnityIntegration.Helper.Source2Mat;
 using OpenCVForUnity.CoreModule;
 using OpenCVForUnity.ImgprocModule;
 using OpenCVForUnity.ObjdetectModule;
-using OpenCVForUnity.UnityUtils;
-using OpenCVForUnity.UnityUtils.Helper;
+using OpenCVForUnity.UnityIntegration;
+using OpenCVForUnity.UnityIntegration.Helper.Optimization;
+using OpenCVForUnity.UnityIntegration.Helper.Source2Mat;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -233,7 +235,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             imageOptimizationHelper = gameObject.GetComponent<ImageOptimizationHelper>();
             webCamTextureToMatHelper = gameObject.GetComponent<HLCameraStream2MatHelper>();
 #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
-            webCamTextureToMatHelper.frameMatAcquired += OnFrameMatAcquired;
+            webCamTextureToMatHelper.FrameMatAcquired += OnFrameMatAcquired;
 #endif
 
             rectangleTracker = new RectangleTracker();
@@ -245,12 +247,12 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 debugStr.text = "Preparing file access...";
             }
 
-            cascade_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask("OpenCVForUnity/objdetect/lbpcascade_frontalface.xml", cancellationToken: cts.Token);
-            //cascade4Thread_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask("OpenCVForUnity/objdetect/haarcascade_frontalface_alt.xml", cancellationToken: cts.Token);
-            cascade4Thread_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask("OpenCVForUnity/objdetect/lbpcascade_frontalface.xml", cancellationToken: cts.Token);
+            cascade_filepath = await DlibEnv.GetFilePathTaskAsync("OpenCVForUnityExample/objdetect/lbpcascade_frontalface.xml", cancellationToken: cts.Token);
+            //cascade4Thread_filepath = await DlibEnv.GetFilePathTaskAsync("OpenCVForUnityExample/objdetect/haarcascade_frontalface_alt.xml", cancellationToken: cts.Token);
+            cascade4Thread_filepath = await DlibEnv.GetFilePathTaskAsync("OpenCVForUnityExample/objdetect/lbpcascade_frontalface.xml", cancellationToken: cts.Token);
             dlibShapePredictorFileName = HoloLensWithDlibFaceLandmarkDetectorExample.dlibShapePredictorFileName;
-            dlibShapePredictor_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask(dlibShapePredictorFileName, cancellationToken: cts.Token);
-            dlibShapePredictor4Thread_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask("DlibFaceLandmarkDetector/sp_human_face_6.dat", cancellationToken: cts.Token);
+            dlibShapePredictor_filepath = await DlibEnv.GetFilePathTaskAsync(dlibShapePredictorFileName, cancellationToken: cts.Token);
+            dlibShapePredictor4Thread_filepath = await DlibEnv.GetFilePathTaskAsync("DlibFaceLandmarkDetector/sp_human_face_6.dat", cancellationToken: cts.Token);
 
             if (debugStr != null)
             {
@@ -295,7 +297,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             }
             faceLandmarkDetector4Thread = new FaceLandmarkDetector(dlibShapePredictor4Thread_filepath);
 
-            webCamTextureToMatHelper.outputColorFormat = Source2MatHelperColorFormat.GRAY;
+            webCamTextureToMatHelper.OutputColorFormat = Source2MatHelperColorFormat.GRAY;
             webCamTextureToMatHelper.Initialize();
         }
 
@@ -320,7 +322,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
             DebugUtils.AddDebugStr(webCamTextureToMatHelper.GetWidth() + " x " + webCamTextureToMatHelper.GetHeight() + " : " + webCamTextureToMatHelper.GetFPS());
             if (enableDownScale)
-                DebugUtils.AddDebugStr("enableDownScale = true: " + imageOptimizationHelper.downscaleRatio + " / " + webCamTextureToMatHelper.GetWidth() / imageOptimizationHelper.downscaleRatio + " x " + webCamTextureToMatHelper.GetHeight() / imageOptimizationHelper.downscaleRatio);
+                DebugUtils.AddDebugStr("enableDownScale = true: " + imageOptimizationHelper.DownscaleRatio + " / " + webCamTextureToMatHelper.GetWidth() / imageOptimizationHelper.DownscaleRatio + " x " + webCamTextureToMatHelper.GetHeight() / imageOptimizationHelper.DownscaleRatio);
 
 
             Matrix4x4 projectionMatrix;
@@ -410,7 +412,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             if (enableDownScale)
             {
                 downScaleMat = imageOptimizationHelper.GetDownScaleMat(grayMat);
-                DOWNSCALE_RATIO = imageOptimizationHelper.downscaleRatio;
+                DOWNSCALE_RATIO = imageOptimizationHelper.DownscaleRatio;
             }
             else
             {
@@ -464,7 +466,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 }
 
                 // set original size image
-                OpenCVForUnityUtils.SetImage(faceLandmarkDetector, grayMat);
+                DlibOpenCVUtils.SetImage(faceLandmarkDetector, grayMat);
 
                 resultFaceLandmarkPoints.Clear();
                 foreach (Rect rect in resultObjects)
@@ -495,14 +497,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     // draw face rects
                     foreach (Rect rect in resultObjects)
                     {
-                        OpenCVForUnityUtils.DrawFaceRect(grayMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_GRAY, 2);
+                        DlibOpenCVUtils.DrawFaceRect(grayMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_GRAY, 2);
                     }
                 }
 
                 // draw face landmark points
                 foreach (List<Vector2> points in resultFaceLandmarkPoints)
                 {
-                    OpenCVForUnityUtils.DrawFaceLandmark(grayMat, points, COLOR_WHITE, 4);
+                    DlibOpenCVUtils.DrawFaceLandmark(grayMat, points, COLOR_WHITE, 4);
                 }
 
             }
@@ -568,7 +570,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 }
 
                 // set original size image
-                OpenCVForUnityUtils.SetImage(faceLandmarkDetector, grayMat);
+                DlibOpenCVUtils.SetImage(faceLandmarkDetector, grayMat);
 
                 resultFaceLandmarkPoints.Clear();
                 foreach (Rect rect in resultObjects)
@@ -602,14 +604,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     // draw face rects
                     foreach (Rect rect in resultObjects)
                     {
-                        OpenCVForUnityUtils.DrawFaceRect(grayMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_GRAY, 2);
+                        DlibOpenCVUtils.DrawFaceRect(grayMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_GRAY, 2);
                     }
                 }
 
                 // draw face landmark points
                 foreach (List<Vector2> points in resultFaceLandmarkPoints)
                 {
-                    OpenCVForUnityUtils.DrawFaceLandmark(grayMat, points, COLOR_WHITE, 4);
+                    DlibOpenCVUtils.DrawFaceLandmark(grayMat, points, COLOR_WHITE, 4);
                 }
             }
 
@@ -619,7 +621,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             {
                 if (!webCamTextureToMatHelper.IsPlaying()) return;
 
-                Utils.matToTexture2D(grayMat, texture);
+                OpenCVMatUtils.MatToTexture2D(grayMat, texture);
                 grayMat.Dispose();
 
                 Matrix4x4 worldToCameraMatrix = cameraToWorldMatrix.inverse;
@@ -685,7 +687,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 if (enableDownScale)
                 {
                     downScaleMat = imageOptimizationHelper.GetDownScaleMat(grayMat);
-                    DOWNSCALE_RATIO = imageOptimizationHelper.downscaleRatio;
+                    DOWNSCALE_RATIO = imageOptimizationHelper.DownscaleRatio;
                 }
                 else
                 {
@@ -717,7 +719,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     rectangleTracker.GetObjects(resultObjects, true);
 
                     // set original size image
-                    OpenCVForUnityUtils.SetImage(faceLandmarkDetector, grayMat);
+                    DlibOpenCVUtils.SetImage(faceLandmarkDetector, grayMat);
 
                     resultFaceLandmarkPoints.Clear();
                     foreach (Rect rect in resultObjects)
@@ -749,14 +751,14 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         // draw face rects
                         foreach (Rect rect in resultObjects)
                         {
-                            OpenCVForUnityUtils.DrawFaceRect(grayMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_GRAY, 2);
+                            DlibOpenCVUtils.DrawFaceRect(grayMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_GRAY, 2);
                         }
                     }
 
                     // draw face landmark points
                     foreach (List<Vector2> points in resultFaceLandmarkPoints)
                     {
-                        OpenCVForUnityUtils.DrawFaceLandmark(grayMat, points, COLOR_WHITE, 4);
+                        DlibOpenCVUtils.DrawFaceLandmark(grayMat, points, COLOR_WHITE, 4);
                     }
 
                 }
@@ -802,7 +804,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     rectangleTracker.GetObjects(resultObjects, false);
 
                     // set original size image
-                    OpenCVForUnityUtils.SetImage(faceLandmarkDetector, grayMat);
+                    DlibOpenCVUtils.SetImage(faceLandmarkDetector, grayMat);
 
                     resultFaceLandmarkPoints.Clear();
                     foreach (Rect rect in resultObjects)
@@ -837,20 +839,20 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                         // draw face rects
                         foreach (Rect rect in resultObjects)
                         {
-                            OpenCVForUnityUtils.DrawFaceRect(grayMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_GRAY, 2);
+                            DlibOpenCVUtils.DrawFaceRect(grayMat, new UnityEngine.Rect(rect.x, rect.y, rect.width, rect.height), COLOR_GRAY, 2);
                         }
                     }
 
                     // draw face landmark points
                     foreach (List<Vector2> points in resultFaceLandmarkPoints)
                     {
-                        OpenCVForUnityUtils.DrawFaceLandmark(grayMat, points, COLOR_WHITE, 4);
+                        DlibOpenCVUtils.DrawFaceLandmark(grayMat, points, COLOR_WHITE, 4);
                     }
                 }
 
                 DebugUtils.TrackTick();
 
-                Utils.matToTexture2D(grayMat, texture);
+                OpenCVMatUtils.MatToTexture2D(grayMat, texture);
             }
 
             if (webCamTextureToMatHelper.IsPlaying())
@@ -923,7 +925,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
 
         private void DetectObject(Mat img, out List<Rect> detectedObjects, FaceLandmarkDetector landmarkDetector)
         {
-            OpenCVForUnityUtils.SetImage(landmarkDetector, img);
+            DlibOpenCVUtils.SetImage(landmarkDetector, img);
 
             List<UnityEngine.Rect> detectResult = landmarkDetector.Detect();
 
@@ -989,7 +991,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             {
                 img1_roi.copyTo(img1);
 
-                OpenCVForUnityUtils.SetImage(landmarkDetector, img1);
+                DlibOpenCVUtils.SetImage(landmarkDetector, img1);
 
                 List<UnityEngine.Rect> detectResult = landmarkDetector.Detect();
 
@@ -1100,7 +1102,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         void OnDestroy()
         {
 #if WINDOWS_UWP && !DISABLE_HOLOLENSCAMSTREAM_API
-            webCamTextureToMatHelper.frameMatAcquired -= OnFrameMatAcquired;
+            webCamTextureToMatHelper.FrameMatAcquired -= OnFrameMatAcquired;
 #endif
             webCamTextureToMatHelper.Dispose();
             imageOptimizationHelper.Dispose();
@@ -1161,7 +1163,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
         /// </summary>
         public void OnChangeCameraButtonClick()
         {
-            webCamTextureToMatHelper.requestedIsFrontFacing = !webCamTextureToMatHelper.requestedIsFrontFacing;
+            webCamTextureToMatHelper.RequestedIsFrontFacing = !webCamTextureToMatHelper.RequestedIsFrontFacing;
         }
 
         /// <summary>

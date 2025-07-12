@@ -8,6 +8,10 @@ using OpenCVForUnity.ImgprocModule;
 using System.Collections;
 using System.Linq;
 using System.Threading;
+using DlibFaceLandmarkDetector.UnityIntegration;
+using OpenCVForUnity.UnityIntegration;
+
+
 
 #if UNITY_2018_2_OR_NEWER
 using UnityEngine.Windows.WebCam;
@@ -55,7 +59,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
             }
 
             dlibShapePredictorFileName = HoloLensWithDlibFaceLandmarkDetectorExample.dlibShapePredictorFileName;
-            string dlibShapePredictor_filepath = await DlibFaceLandmarkDetector.UnityUtils.Utils.getFilePathAsyncTask(dlibShapePredictorFileName, cancellationToken: cts.Token);
+            string dlibShapePredictor_filepath = await DlibEnv.GetFilePathTaskAsync(dlibShapePredictorFileName, cancellationToken: cts.Token);
 
             if (text != null)
             {
@@ -198,9 +202,9 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 Mat bgraMat = new Mat(targetTexture.height, targetTexture.width, CvType.CV_8UC4);
 
                 // For BGRA or BGR format, use the texture2DToMatRaw method.
-                OpenCVForUnity.UnityUtils.Utils.texture2DToMatRaw(targetTexture, bgraMat);
+                OpenCVMatUtils.Texture2DToMatRaw(targetTexture, bgraMat);
 
-                OpenCVForUnityUtils.SetImage(faceLandmarkDetector, bgraMat);
+                DlibOpenCVUtils.SetImage(faceLandmarkDetector, bgraMat);
 
                 //detect face
                 List<FaceLandmarkDetector.RectDetection> detectResult = faceLandmarkDetector.DetectRectDetection();
@@ -215,10 +219,10 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                     Debug.Log("face points count : " + points.Count);
 
                     //draw landmark points
-                    OpenCVForUnityUtils.DrawFaceLandmark(bgraMat, points, new Scalar(0, 255, 0, 255), 2);
+                    DlibOpenCVUtils.DrawFaceLandmark(bgraMat, points, new Scalar(0, 255, 0, 255), 2);
 
                     //draw face rect
-                    OpenCVForUnityUtils.DrawFaceRect(bgraMat, r.rect, new Scalar(255, 0, 0, 255), 2);
+                    DlibOpenCVUtils.DrawFaceRect(bgraMat, r.rect, new Scalar(255, 0, 0, 255), 2);
                 }
 
                 // draw an edge lines.
@@ -227,7 +231,7 @@ namespace HoloLensWithDlibFaceLandmarkDetectorExample
                 Imgproc.putText(bgraMat, targetTexture.format + " W:" + bgraMat.width() + " H:" + bgraMat.height(), new Point(5, bgraMat.rows() - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 1.5, new Scalar(255, 0, 0, 255), 2, Imgproc.LINE_AA, false);
 
                 // For BGRA or BGR format, use the matToTexture2DRaw method.
-                OpenCVForUnity.UnityUtils.Utils.matToTexture2DRaw(bgraMat, targetTexture);
+                OpenCVMatUtils.MatToTexture2DRaw(bgraMat, targetTexture);
                 bgraMat.Dispose();
 
 

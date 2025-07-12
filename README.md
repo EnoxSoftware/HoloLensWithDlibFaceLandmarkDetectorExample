@@ -11,8 +11,8 @@
 * Unity 2021.3.35f1 (Built-in Render Pipeline / OpenXR 1.11.1 / MRTK 2.8.3 / DirectX 11 / Visual Studio 2022 MSVC v143)
 * Unity 2021.3.35f1 (Built-in Render Pipeline / OpenXR 1.11.1 / MRTK 3.2.2 / DirectX 11 / Visual Studio 2022 MSVC v143)
 * [Mixed Reality Feature Tool](https://learn.microsoft.com/en-us/windows/mixed-reality/develop/unity/welcome-to-mr-feature-tool)
-* [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 2.6.4+ 
-* [Dlib FaceLandmarkDetector](https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314?aid=1011l4ehR) 1.4.1+ 
+* [OpenCV for Unity](https://assetstore.unity.com/packages/tools/integration/opencv-for-unity-21088?aid=1011l4ehR) 3.0.0+ 
+* [Dlib FaceLandmarkDetector](https://assetstore.unity.com/packages/tools/integration/dlib-facelandmark-detector-64314?aid=1011l4ehR) 2.0.0+ 
 * [EnoxSoftware/HoloLensCameraStream](https://github.com/EnoxSoftware/HoloLensCameraStream)
 
 
